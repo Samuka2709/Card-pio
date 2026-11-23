@@ -268,7 +268,7 @@
   /* SEO: Open Graph sempre; dados estruturados (schema.org) só com dados reais */
   function renderSEO() {
     const meta = (prop, valor, attr = "property") => {
-      if (!valor) return;
+      if (!valor || document.head.querySelector(`meta[${attr}="${prop}"]`)) return; // o HTML tem prioridade
       const m = document.createElement("meta");
       m.setAttribute(attr, prop); m.content = valor;
       document.head.appendChild(m);

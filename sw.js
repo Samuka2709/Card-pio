@@ -1,6 +1,6 @@
 /* Service worker: rede primeiro (preços sempre atualizados), cópia salva quando estiver sem internet. */
-const CACHE = "cardapio-v12";
-const BASE = ["./", "index.html", "css/estilo.css?v=12", "js/config.js?v=12", "js/pix.js?v=12", "js/app.js?v=12", "img/logo-exemplo.svg", "img/icone-192.png", "manifest.webmanifest"];
+const CACHE = "cardapio-v13";
+const BASE = ["./", "index.html", "css/estilo.css?v=13", "js/config.js?v=13", "js/pix.js?v=13", "js/app.js?v=13", "img/logo-exemplo.svg", "img/icone-192.png", "manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(BASE)).then(() => self.skipWaiting()));

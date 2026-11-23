@@ -54,6 +54,11 @@
 - `selos` nos produtos (vegetariano, sem-gluten, apimentado, novo) aparecem nos cards e viram filtros. Os nomes exibidos ficam em `selos` no `config.js`.
 - Depois de enviar um pedido, o celular do cliente guarda o pedido e mostra "Pedir de novo" com os preços atuais.
 
+## Prévia ao compartilhar o link
+- A imagem e o texto que aparecem no WhatsApp ficam no topo do `index.html` (tags `og:`) e em `img/compartilhar.jpg` (1200x630, até 300 KB).
+- Para outro cliente, troque o título, a descrição, o endereço do site e a imagem. O endereço da imagem precisa ser completo (https://...).
+- O WhatsApp guarda a prévia por um tempo. Para testar uma prévia nova, envie o link com algo no final, por exemplo `?p=2`.
+
 ## Instalar como app
 - No celular, o navegador oferece "Adicionar à tela inicial". O app abre em tela cheia e mostra a última versão salva se estiver sem internet.
 - Para outro cliente, troque o nome em `manifest.webmanifest` e os ícones em `img/icone-*.png`.
