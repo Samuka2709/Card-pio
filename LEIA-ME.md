@@ -30,6 +30,35 @@
 - Se a taxa de entrega for `null` (a confirmar), o código não é gerado, porque o valor final ainda não é conhecido.
 - Antes de entregar ao cliente, faça um Pix de teste de R$ 0,01 lendo o QR com o app do banco e confira o nome do recebedor.
 
+## Planilha do Google (o restaurante edita sem mexer em código)
+1. Importe o arquivo `modelo-planilha.csv` no Google Planilhas (Arquivo > Importar).
+2. Em Arquivo > Compartilhar > Publicar na web, escolha a aba e o formato CSV e copie o link.
+3. Cole o link em `planilha.url` no `config.js`.
+- Colunas: id, categoria, nome, descricao, preco (ex.: 32,90), preco_original, disponivel (sim/não), foto (link), destaque, mais_pedido, selos (separados por |).
+- Um id que já existe no `config.js` atualiza o produto e mantém as opções (tamanhos, adicionais). Um id novo cria um produto simples, sem opções.
+- Categoria nova na planilha vira uma categoria nova no cardápio.
+- O Google leva alguns minutos para atualizar o CSV publicado. Se a planilha falhar, o cardápio usa a última cópia salva no celular ou o `config.js`.
+
+## QR Code por mesa
+- Abra `qrcodes.html` no site publicado (ex.: https://samuka2709.github.io/Card-pio/qrcodes.html), escolha o número de mesas e imprima.
+- Cada QR abre o cardápio com `?mesa=N`: o pedido sai como "Consumo no local, Mesa N", sem pedir endereço nem horário.
+
+## Entrega, horário e cupons
+- `entrega.pedidoMinimo`: valor mínimo para entrega (centavos).
+- `entrega.bairros`: taxa por bairro. Sem bairros, vale a `taxa` da modalidade Entrega.
+- `entrega.quandoFechado`: "agendar" (cliente escolhe um horário do próximo expediente), "bloquear" (não envia) ou "avisar" (só informa).
+- `cupons`: percentual ou valor fixo, com valor mínimo opcional. Os códigos ficam visíveis no código do site, então o restaurante deve conferir o desconto no pedido.
+
+## Busca, selos e pedir de novo
+- A busca procura no nome, descrição, categoria e selos, sem diferenciar acentos.
+- `selos` nos produtos (vegetariano, sem-gluten, apimentado, novo) aparecem nos cards e viram filtros. Os nomes exibidos ficam em `selos` no `config.js`.
+- Depois de enviar um pedido, o celular do cliente guarda o pedido e mostra "Pedir de novo" com os preços atuais.
+
+## Instalar como app
+- No celular, o navegador oferece "Adicionar à tela inicial". O app abre em tela cheia e mostra a última versão salva se estiver sem internet.
+- Para outro cliente, troque o nome em `manifest.webmanifest` e os ícones em `img/icone-*.png`.
+- A cada atualização, aumente o `?v=` no `index.html` e o `CACHE`/lista em `sw.js` com o mesmo número.
+
 ## Google
 Com `demonstracao: false`, a página gera os dados estruturados (schema.org Restaurant, horários e cardápio com preços) a partir do `config.js`. Valide em https://search.google.com/test/rich-results depois de publicar.
 

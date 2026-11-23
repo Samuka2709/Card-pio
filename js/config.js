@@ -55,6 +55,35 @@ window.CARDAPIO = {
     { id: "mesa", nome: "Consumo no local", taxa: 0 }
   ],
 
+  // Regras de entrega. Com bairros preenchidos, a taxa da entrega vem do bairro escolhido.
+  entrega: {
+    pedidoMinimo: 3000,            // centavos; 0 = sem mínimo
+    quandoFechado: "agendar",      // "agendar" (pede horário), "bloquear" (não envia) ou "avisar" (só informa)
+    bairros: [
+      { nome: "Centro", taxa: 500 },
+      { nome: "Bairro Exemplo 1", taxa: 700 },
+      { nome: "Bairro Exemplo 2", taxa: 1000 }
+    ]
+  },
+
+  // Cupons. tipo "percentual" (valor = %) ou "fixo" (valor em centavos). minimo = valor mínimo do pedido.
+  // Atenção: os códigos ficam visíveis no código do site. Use cupons simples e confira no pedido.
+  cupons: [
+    { codigo: "BEMVINDO10", tipo: "percentual", valor: 10, minimo: 4000, descricao: "10% de desconto no pedido" }
+  ],
+
+  // Planilha do Google publicada como CSV (Arquivo > Compartilhar > Publicar na web > CSV).
+  // Quando preenchida, a planilha atualiza preços, disponibilidade, fotos e pode incluir produtos novos.
+  planilha: { url: "" },
+
+  // Nomes exibidos dos selos usados nos produtos (campo "selos")
+  selos: {
+    vegetariano: "Vegetariano",
+    "sem-gluten": "Sem glúten",
+    apimentado: "Apimentado",
+    novo: "Novo"
+  },
+
   tema: {
     cores: {
       fundo: "#f2f4ef",
@@ -120,7 +149,7 @@ window.CARDAPIO = {
       ]
     },
     {
-      id: "burger-duplo", categoria: "hamburgueres", nome: "Duplo Cheddar",
+      id: "burger-duplo", categoria: "hamburgueres", selos: ["novo"], nome: "Duplo Cheddar",
       descricao: "Dois smash de 90 g na chapa, cheddar derretido em dobro, picles e molho especial no pão macio.",
       preco: 3990,
       foto: unsplash("1607013251379-e6eecfffe234", 320, 320), legendaFoto: "cheeseburger duplo com picles",
@@ -132,13 +161,13 @@ window.CARDAPIO = {
       ]
     },
     {
-      id: "burger-veg", categoria: "hamburgueres", nome: "Vegetariano",
+      id: "burger-veg", categoria: "hamburgueres", selos: ["vegetariano"], nome: "Vegetariano",
       descricao: "Hambúrguer de grão-de-bico e legumes, folhas, tomate e maionese de ervas.",
       preco: 3490, disponivel: false,
       foto: unsplash("1520072959219-c595dc870360", 320, 320), legendaFoto: "hambúrguer com tomate e folhas"
     },
     {
-      id: "pizza-margherita", categoria: "pizzas", nome: "Margherita",
+      id: "pizza-margherita", categoria: "pizzas", selos: ["vegetariano"], nome: "Margherita",
       descricao: "Molho de tomate italiano, muçarela fresca, manjericão e azeite. Massa de fermentação lenta.",
       preco: 0, maisPedido: true,
       foto: unsplash("1574071318508-1cdbab80d002", 320, 320), legendaFoto: "pizza margherita inteira",
@@ -155,7 +184,7 @@ window.CARDAPIO = {
       ]
     },
     {
-      id: "pizza-calabresa", categoria: "pizzas", nome: "Calabresa",
+      id: "pizza-calabresa", categoria: "pizzas", selos: ["apimentado"], nome: "Calabresa",
       descricao: "Calabresa fatiada, cebola roxa, muçarela e azeitonas pretas.",
       preco: 0,
       foto: unsplash("1628840042765-356cda07504e", 320, 320), legendaFoto: "pizza de calabresa fatiada",
@@ -168,7 +197,7 @@ window.CARDAPIO = {
       ]
     },
     {
-      id: "batata", categoria: "porcoes", nome: "Batatas fritas",
+      id: "batata", categoria: "porcoes", selos: ["vegetariano", "sem-gluten"], nome: "Batatas fritas",
       descricao: "Batatas cortadas na casa, crocantes por fora e macias por dentro, com sal e alecrim.",
       preco: 0,
       foto: unsplash("1630384060421-cb20d0e0649d", 320, 320), legendaFoto: "cesta de batatas fritas",
@@ -197,7 +226,7 @@ window.CARDAPIO = {
       ]
     },
     {
-      id: "suco", categoria: "bebidas", nome: "Suco natural de laranja",
+      id: "suco", categoria: "bebidas", selos: ["vegetariano", "sem-gluten"], nome: "Suco natural de laranja",
       descricao: "500 ml, espremido na hora, sem açúcar.", preco: 1090,
       foto: unsplash("1600271886742-f049cd451bba", 320, 320), legendaFoto: "copo de suco de laranja"
     },

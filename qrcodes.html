@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>QR Codes das mesas</title>
+  <link rel="icon" href="img/icone.svg" type="image/svg+xml">
+  <style>
+    :root { --fundo: #f2f4ef; --texto: #15201a; --suave: #56625a; --borda: #dce2d8; --primaria: #1f4d3a; --primaria-texto: #fff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fundo); color: var(--texto); font: 16px/1.5 system-ui, sans-serif; }
+    .painel { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    .ajuda { color: var(--suave); margin: 0 0 20px; max-width: 65ch; }
+    form { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; padding: 16px; background: #fff; border: 1px solid var(--borda); border-radius: 14px; }
+    label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
+    input { font: inherit; padding: 10px 12px; border: 1px solid var(--borda); border-radius: 8px; min-height: 44px; }
+    input[type="number"] { width: 110px; }
+    input[type="url"] { width: min(420px, 100%); }
+    .check { display: flex; align-items: center; gap: 8px; font-weight: 500; min-height: 44px; }
+    .check input { width: 20px; height: 20px; min-height: 0; accent-color: var(--primaria); }
+    button { font: inherit; font-weight: 600; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: var(--primaria); color: var(--primaria-texto); cursor: pointer; }
+    .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 24px; }
+    .cartao { background: #fff; border: 1px solid var(--borda); border-radius: 14px; padding: 18px 16px; text-align: center; break-inside: avoid; }
+    .cartao .nome { font-weight: 700; font-size: 1rem; margin: 0; }
+    .cartao .mesa { font-size: 1.9rem; font-weight: 800; margin: 2px 0 8px; letter-spacing: -.01em; }
+    .cartao .qr { width: 170px; height: 170px; margin: 0 auto; }
+    .cartao .qr svg { width: 100%; height: 100%; display: block; }
+    .cartao .instrucao { margin: 10px 0 0; font-size: .85rem; color: var(--suave); }
+    .erro { color: #a3260f; }
+    @media print {
+      body { background: #fff; }
+      .painel > :not(.grade) { display: none; }
+      .painel { padding: 0; max-width: none; }
+      .grade { grid-template-columns: repeat(3, 1fr); gap: 10mm; margin: 0; }
+      .cartao { border: 1px dashed #999; }
+    }
+  </style>
+</head>
+<body>
+  <div class="painel">
+    <h1>QR Codes das mesas</h1>
+    <p class="ajuda">Cada QR Code abre o cardápio já com o número da mesa. O pedido chega no WhatsApp como "Consumo no local, Mesa X". Gere, confira um deles com a câmera do celular e imprima.</p>
+    <form id="form">
+      <label>Quantidade de mesas <input type="number" id="qtd" min="1" max="200" value="10" required></label>
+      <label>Endereço do cardápio <input type="url" id="base" required></label>
+      <label class="check"><input type="checkbox" id="balcao" checked> Incluir QR do balcão (sem mesa)</label>
+      <button type="submit">Gerar QR Codes</button>
+      <button type="button" id="imprimir">Imprimir</button>
+    </form>
+    <p class="erro" id="erro" role="alert" hidden></p>
+    <div class="grade" id="grade"></div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script>
+    (function () {
+      const C = window.CARDAPIO || {};
+      const nome = (C.estabelecimento && C.estabelecimento.nome) || "Cardápio";
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const base = document.getElementById("base");
+      base.value = new URL("./", location.href).href;
+
+      function svg(texto) {
+        const q = qrcode(0, "M"); q.addData(texto); q.make();
+        return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      }
+      function cartao(titulo, url) {
+        return `<div class="cartao"><p class="nome">${esc(nome)}</p><p class="mesa">${esc(titulo)}</p>
+          <div class="qr" role="img" aria-label="QR Code: ${esc(titulo)}">${svg(url)}</div>
+          <p class="instrucao">Aponte a câmera do celular para ver o cardápio e fazer o pedido.</p></div>`;
+      }
+      function gerar(e) {
+        e && e.preventDefault();
+        const erro = document.getElementById("erro");
+        if (!window.qrcode) { erro.hidden = false; erro.textContent = "Não foi possível carregar o gerador de QR Code. Verifique a internet e recarregue a página."; return; }
+        erro.hidden = true;
+        let url;
+        try { url = new URL(base.value); } catch { erro.hidden = false; erro.textContent = "Informe o endereço completo do cardápio, começando com https://"; return; }
+        const n = Math.min(200, Math.max(1, parseInt(document.getElementById("qtd").value, 10) || 1));
+        const cartoes = [];
+        if (document.getElementById("balcao").checked) cartoes.push(cartao("Cardápio", url.href));
+        for (let i = 1; i <= n; i++) {
+          const u = new URL(url.href); u.searchParams.set("mesa", i);
+          cartoes.push(cartao("Mesa " + i, u.href));
+        }
+        document.getElementById("grade").innerHTML = cartoes.join("");
+      }
+      document.getElementById("form").addEventListener("submit", gerar);
+      document.getElementById("imprimir").addEventListener("click", () => window.print());
+      gerar();
+    })();
+  </script>
+</body>
+</html>

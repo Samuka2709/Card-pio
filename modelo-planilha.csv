@@ -1,0 +1,11 @@
+﻿id,categoria,nome,descricao,preco,preco_original,disponivel,foto,destaque,mais_pedido,selos
+combo-casa,Combos,Combo Casa,"Hambúrguer Clássico, batatas fritas individuais e uma bebida à sua escolha. A combinação mais pedida da semana.","42,90","49,90",sim,,sim,sim,
+burger-classico,Hambúrgueres,Clássico,"Pão brioche, blend bovino de 160 g, queijo prato, alface, tomate e maionese da casa.","32,90",,sim,,,sim,
+burger-duplo,Hambúrgueres,Duplo Cheddar,"Dois smash de 90 g na chapa, cheddar derretido em dobro, picles e molho especial no pão macio.","39,90",,sim,,,,novo
+burger-veg,Hambúrgueres,Vegetariano,"Hambúrguer de grão-de-bico e legumes, folhas, tomate e maionese de ervas.","34,90",,não,,,,vegetariano
+pizza-margherita,Pizzas,Margherita,"Molho de tomate italiano, muçarela fresca, manjericão e azeite. Massa de fermentação lenta.","0,00",,sim,,,sim,vegetariano
+pizza-calabresa,Pizzas,Calabresa,"Calabresa fatiada, cebola roxa, muçarela e azeitonas pretas.","0,00",,sim,,,,apimentado
+batata,Porções,Batatas fritas,"Batatas cortadas na casa, crocantes por fora e macias por dentro, com sal e alecrim.","0,00",,sim,,,,vegetariano | sem-gluten
+refri,Bebidas,Refrigerante lata,"350 ml, bem gelado.","7,00",,sim,,,,
+suco,Bebidas,Suco natural de laranja,"500 ml, espremido na hora, sem açúcar.","10,90",,sim,,,,vegetariano | sem-gluten
+brownie,Sobremesas,Brownie com calda,"Brownie de chocolate meio amargo, casquinha crocante e calda quente de chocolate.","15,90","18,90",sim,,,,

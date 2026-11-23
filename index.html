@@ -8,7 +8,12 @@
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/estilo.css?v=11">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="img/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/icone-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Cardápio">
+  <link rel="stylesheet" href="css/estilo.css?v=12">
 </head>
 <body>
   <a class="pular" href="#cardapio">Pular para o cardápio</a>
@@ -33,6 +38,7 @@
   </header>
 
   <p class="aviso-demo" id="aviso-demo" hidden>Demonstração: nomes, preços e informações são exemplos e serão substituídos pelos dados do estabelecimento.</p>
+  <p class="aviso-mesa" id="aviso-mesa" role="status" hidden></p>
 
   <nav class="categorias" id="categorias" aria-label="Categorias do cardápio">
     <div class="categorias-trilho" id="categorias-trilho"></div>
@@ -60,8 +66,8 @@
 
   <noscript><p class="aviso-demo">Ative o JavaScript para usar o cardápio.</p></noscript>
 
-  <script src="js/config.js?v=11"></script>
-  <script src="js/pix.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/config.js?v=12"></script>
+  <script src="js/pix.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>
