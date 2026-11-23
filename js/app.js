@@ -390,7 +390,7 @@
 
     const bW = $("#btn-whats-topo");
     bW.innerHTML = icone("conversa") + "WhatsApp";
-    if (numeroWhats) { bW.href = linkWhats(""); bW.addEventListener("click", () => registrar("whatsapp-topo", "Clicou no WhatsApp do topo")); } else bW.remove();
+    if (numeroWhats) bW.href = linkWhats(""); else bW.remove();
     const bM = $("#btn-mapa-topo");
     bM.innerHTML = icone("pino") + esc(T("Como chegar"));
     if (E.mapsUrl) bM.href = E.mapsUrl; else bM.remove();
@@ -638,7 +638,7 @@
     const links = [
       E.mapsUrl ? `<a class="botao botao-claro" href="${esc(E.mapsUrl)}" target="_blank" rel="noopener">${icone("pino")}${T("Como chegar")}</a>` : "",
       numeroWhats ? `<a class="botao botao-contorno" href="${linkWhats("")}" target="_blank" rel="noopener">${icone("conversa")}WhatsApp</a>` : "",
-      AVALIACAO ? `<a class="botao botao-contorno" href="${esc(AVALIACAO)}" target="_blank" rel="noopener" data-avaliar>${icone("estrela")}${T("Avaliar no Google")}</a>` : "",
+      AVALIACAO ? `<a class="botao botao-contorno" href="${esc(AVALIACAO)}" target="_blank" rel="noopener">${icone("estrela")}${T("Avaliar no Google")}</a>` : "",
       E.instagram ? `<a class="botao botao-contorno" href="https://instagram.com/${esc(E.instagram)}" target="_blank" rel="noopener">${icone("instagram")}@${esc(E.instagram)}</a>` : ""
     ].join("");
     const infos = [...(tx(E, "informacoes") || [])];
@@ -679,10 +679,10 @@
   const dlgProduto = $("#dlg-produto");
   let estado = null;
 
-  function abrirProduto(id, _el, origem = "") {
+  function abrirProduto(id) {
     const p = porId[id];
     if (!p || !p.disponivel) return;
-    estado = { p, sel: {}, qtd: 1, obs: "", origem };
+    estado = { p, sel: {}, qtd: 1, obs: "" };
     p.grupos.forEach((g) => (estado.sel[g.id] = []));
     renderProduto();
     dlgProduto.showModal();
@@ -807,7 +807,6 @@
         return;
       }
       adicionarItem(estado.p, estado.sel, estado.qtd, estado.obs);
-      registrar(estado.origem === "sugestao" ? "sugestao-aceita" : "item-adicionado", estado.origem === "sugestao" ? "Aceitou sugestão: " + estado.p.nome : "Item adicionado");
       whatsAberto = false;
       persistir(); renderCarrinho();
       dlgProduto.close();
@@ -1026,9 +1025,8 @@
     const p = porId[id];
     if (!p || !p.disponivel) return;
     // Com escolha obrigatória (sabor, tamanho), abre o detalhe por cima do carrinho
-    if (p.grupos.some((g) => (g.min || 0) >= 1)) { abrirProduto(id, null, "sugestao"); return; }
+    if (p.grupos.some((g) => (g.min || 0) >= 1)) { abrirProduto(id); return; }
     adicionarItem(p, {}, 1, "");
-    registrar("sugestao-aceita", "Aceitou sugestão: " + p.nome);
     whatsAberto = false; avisoRepetir = T("{n} adicionado ao pedido.", { n: tx(p, "nome") });
     persistir(); renderCarrinho();
   }
@@ -1040,7 +1038,7 @@
     return `
     <div class="lembrete-comprovante" role="note">
       <p><strong>${T("Não esqueça o comprovante do Pix")}</strong>${T("Depois de pagar, envie o comprovante na conversa. O pedido só é preparado depois que o pagamento é conferido.")}</p>
-      <a class="botao botao-primario botao-bloco" href="${linkWhats(texto)}" target="_blank" rel="noopener" data-comprovante>${icone("conversa")}${T("Enviar comprovante no WhatsApp")}</a>
+      <a class="botao botao-primario botao-bloco" href="${linkWhats(texto)}" target="_blank" rel="noopener">${icone("conversa")}${T("Enviar comprovante no WhatsApp")}</a>
     </div>`;
   }
 
@@ -1049,7 +1047,7 @@
   const htmlAvaliacao = () => AVALIACAO ? `
     <div class="avaliacao">
       <p><strong>${T("Gostou? Avalie a gente no Google")}</strong>${T("Sua avaliação ajuda outras pessoas a nos encontrar.")}</p>
-      <a class="botao botao-bloco" href="${esc(AVALIACAO)}" target="_blank" rel="noopener" data-avaliar>${icone("estrela")}${T("Avaliar no Google")}</a>
+      <a class="botao botao-bloco" href="${esc(AVALIACAO)}" target="_blank" rel="noopener">${icone("estrela")}${T("Avaliar no Google")}</a>
     </div>` : "";
 
   function htmlFechado(ctx) {
@@ -1302,7 +1300,6 @@
     if (env) {
       if (env.getAttribute("aria-disabled") === "true") { e.preventDefault(); return; }
       whatsAberto = true;
-      registrar("pedido-enviado", "Pedido enviado pelo WhatsApp");
       guardarUltimoPedido();
       setTimeout(renderCarrinho, 0);
     }
@@ -1345,31 +1342,6 @@
     });
   });
   $("#barra-pedido").addEventListener("click", () => dlgCarrinho.showModal());
-  document.addEventListener("click", (e) => {
-    if (e.target.closest("[data-avaliar]")) registrar("avaliacao-google", "Clicou em avaliar no Google");
-    if (e.target.closest("[data-comprovante]")) registrar("comprovante-pix", "Abriu o WhatsApp para enviar o comprovante");
-  });
-
-  /* ---------- Relatório (GoatCounter: sem cookies e sem dados pessoais) ---------- */
-  // Conta visitas e eventos (itens adicionados, pedidos enviados, sugestões aceitas, cliques em avaliação).
-  const GC = String(C.relatorio?.goatcounter || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
-  const filaRelatorio = [];
-  function iniciarRelatorio() {
-    if (!GC || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
-    const s = document.createElement("script");
-    s.async = true;
-    s.src = "https://gc.zgo.at/count.v4.js";
-    s.dataset.goatcounter = `https://${GC}.goatcounter.com/count`;
-    s.onload = () => filaRelatorio.splice(0).forEach((f) => f());
-    document.head.appendChild(s);
-    if (MESA) registrar("abriu-pela-mesa", "Abriu pelo QR da mesa");
-    if (LANG !== "pt") registrar("idioma-" + LANG, "Abriu em " + LANG.toUpperCase());
-  }
-  function registrar(evento, titulo) {
-    if (!GC) return;
-    const f = () => { try { window.goatcounter.count({ path: evento, title: titulo || evento, event: true }); } catch { /* sem relatório */ } };
-    window.goatcounter?.count ? f() : filaRelatorio.push(f);
-  }
 
   /* ---------- Instalar como app (PWA) ---------- */
   function registrarServiceWorker() {
@@ -1382,7 +1354,6 @@
   async function iniciar() {
     aplicarTema();
     registrarServiceWorker();
-    iniciarRelatorio();
     renderTopo();
     if (C.planilha?.url) $("#cardapio").innerHTML = `<p class="carregando" role="status">${T("Carregando o cardápio…")}</p>`;
     await Promise.all([carregarPlanilha(), carregarAvisos()]);

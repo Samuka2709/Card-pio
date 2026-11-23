@@ -83,9 +83,6 @@ window.CARDAPIO = {
   // "Peça também": até 3 sugestões no carrinho (ids dos produtos, em ordem). Itens já no pedido ou indisponíveis não aparecem.
   sugestoes: ["refri", "suco", "brownie", "batata"],
 
-  // Relatório de visitas e pedidos (GoatCounter, gratuito e sem cookies). Coloque o código do site, ex.: "cozinhaexemplo".
-  relatorio: { goatcounter: "" },
-
   // Cupons. tipo "percentual" (valor = %) ou "fixo" (valor em centavos). minimo = valor mínimo do pedido.
   // Atenção: os códigos ficam visíveis no código do site. Use cupons simples e confira no pedido.
   cupons: [

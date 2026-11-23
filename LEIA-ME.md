@@ -86,15 +86,6 @@
 - `estabelecimento.avaliacaoUrl`: link de avaliação do Perfil da Empresa no Google (no painel do Google: "Pedir avaliações" > copiar link).
 - O botão "Avaliar no Google" aparece depois do envio do pedido, na próxima visita (junto de "Pedir de novo") e no rodapé. Sem link, nada aparece.
 
-## Relatório de visitas e pedidos
-Usa o GoatCounter: gratuito, sem cookies e sem dados pessoais (não precisa de aviso de cookies).
-1. Crie uma conta em https://www.goatcounter.com e um site com um código, ex.: `cozinhaexemplo` (fica `cozinhaexemplo.goatcounter.com`). Uma conta pode ter vários sites, um por restaurante.
-2. Coloque o código em `relatorio.goatcounter` no `config.js` e publique.
-3. Para o dono ver sem senha: em Settings, ative a opção de painel público e mande o link do painel.
-- O painel mostra visitas por dia e estes eventos: `item-adicionado`, `sugestao-aceita`, `pedido-enviado`, `comprovante-pix`, `avaliacao-google`, `whatsapp-topo`, `abriu-pela-mesa`, `idioma-en` e `idioma-es`.
-- "pedido-enviado" conta quem tocou em enviar e abriu o WhatsApp. Se a pessoa desistir no WhatsApp, o site não fica sabendo.
-- No computador (localhost) nada é contado, para os testes não entrarem no relatório.
-
 ## Inglês e espanhol
 - `idiomas: ["pt", "en", "es"]` no `config.js` mostra os botões PT, EN e ES no canto da capa. Com `["pt"]`, os botões somem.
 - Celular configurado em inglês ou espanhol já abre nesse idioma. A escolha fica salva no celular. Link direto: `?lang=en`.
