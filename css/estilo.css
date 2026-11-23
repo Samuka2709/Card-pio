@@ -386,6 +386,28 @@ main { outline: none; }
   border-block: 1px solid color-mix(in srgb, var(--primaria) 25%, var(--borda));
 }
 
+/* Aviso do dia (aba Avisos da planilha) */
+.aviso-loja {
+  max-width: 1180px; margin: 0 auto 8px; padding: 10px 16px; font-size: .92rem; font-weight: 600;
+  color: var(--primaria-texto); background: var(--acento);
+}
+@media (min-width: 1180px) { .aviso-loja, .aviso-mesa { border-radius: var(--raio-m); } }
+
+/* Seletor de idioma, sobre a foto de capa */
+.topo { position: relative; }
+.idiomas {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  display: flex; padding: 3px; gap: 2px; border-radius: 999px;
+  background: rgb(255 255 255 / .92); box-shadow: 0 1px 6px rgb(0 0 0 / .15);
+}
+.idiomas[hidden] { display: none; }
+.idiomas button {
+  min-width: 42px; min-height: 36px; padding: 0 8px; border: 0; border-radius: 999px;
+  background: transparent; color: #15201a; font: 600 .78rem/1 var(--fonte-texto); letter-spacing: .04em; cursor: pointer;
+}
+.idiomas button[aria-pressed="true"] { background: var(--primaria); color: var(--primaria-texto); }
+.idiomas button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 1px; }
+
 /* Busca e filtros */
 .ferramentas { padding-top: 18px; display: grid; gap: 10px; }
 .busca {

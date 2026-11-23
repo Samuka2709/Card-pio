@@ -40,6 +40,17 @@
 - As alterações aparecem quando o cliente abre ou recarrega o cardápio (o Google não guarda cópia em cache).
 - Se a planilha falhar, o cardápio usa a última cópia salva no celular ou o `config.js`.
 
+- Colunas opcionais de tradução: nome_en, descricao_en, nome_es, descricao_es.
+
+### Aba "Avisos" (aviso do dia, feriados e horários)
+1. Na mesma planilha, crie uma aba chamada exatamente **Avisos** e importe nela o `modelo-avisos.csv` (Arquivo > Importar > Inserir nova página).
+2. Colunas: **chave** e **valor** (a coluna "como usar" é só explicação).
+- `aviso`: texto da faixa no topo do cardápio. Apague para tirar. `aviso_en` e `aviso_es` são as versões traduzidas.
+- `fechado`: "não" (normal), "sim" (fechado até mudar de novo, os pedidos ficam bloqueados) ou datas como `25/12, 01/01` (feriados e folgas; datas sem ano valem todo ano).
+- `domingo` a `sabado`: horário do dia, ex.: `18:00-23:00`, `11:30-15:00, 18:00-23:00` ou `fechado`. Vazio usa o horário do `config.js`.
+- Se a aba não existir, o cardápio ignora os avisos e segue normal.
+- Avisos em outra planilha: cole o link dela em `planilha.avisos` no `config.js` (a demonstração usa uma planilha separada, "Cardápio - Avisos (teste)").
+
 ### Segurança da planilha
 - Só quem é dono ou foi adicionado como editor (com login do Google) consegue alterar. Quem tem o link só consegue ver.
 - O link da planilha fica visível no código do site. Por isso, deixe nesse arquivo apenas os dados do cardápio. Custos, fornecedores e anotações vão em outro arquivo.
@@ -62,6 +73,15 @@
 - `selos` nos produtos (vegetariano, sem-gluten, apimentado, novo) aparecem nos cards e viram filtros. Os nomes exibidos ficam em `selos` no `config.js`.
 - Depois de enviar um pedido, o celular do cliente guarda o pedido e mostra "Pedir de novo" com os preços atuais.
 
+## Inglês e espanhol
+- `idiomas: ["pt", "en", "es"]` no `config.js` mostra os botões PT, EN e ES no canto da capa. Com `["pt"]`, os botões somem.
+- Celular configurado em inglês ou espanhol já abre nesse idioma. A escolha fica salva no celular. Link direto: `?lang=en`.
+- Textos da interface (botões, carrinho, avisos) já vêm traduzidos em `js/idiomas.js`.
+- Pratos: `en: { nome, descricao }` e `es: { ... }` em cada produto, ou as colunas `nome_en`, `descricao_en`, `nome_es`, `descricao_es` da planilha.
+- Categorias, opções, formas de pagamento e tipos de atendimento: glossário em `traducoes` no `config.js` (português exatamente como aparece → tradução).
+- Descrição e "Bom saber" do estabelecimento: `estabelecimento.en` e `estabelecimento.es`.
+- O que não tiver tradução aparece em português. A mensagem do WhatsApp sempre chega em português, com a linha "Idioma do cliente".
+
 ## Prévia ao compartilhar o link
 - A imagem e o texto que aparecem no WhatsApp ficam no topo do `index.html` (tags `og:`) e em `img/compartilhar.jpg` (1200x630, até 300 KB).
 - Para outro cliente, troque o título, a descrição, o endereço do site e a imagem. O endereço da imagem precisa ser completo (https://...).
@@ -80,4 +100,4 @@ Com `demonstracao: false`, a página gera os dados estruturados (schema.org Rest
 Publicação: qualquer hospedagem estática (Netlify, Vercel, GitHub Pages, hospedagem comum).
 
 ## Próximas versões (não implementadas)
-Painel administrativo, estoque, pagamento online, QR por mesa, histórico e métricas. Os dados já estão separados da interface, então `config.js` pode ser trocado por uma chamada a uma API.
+Painel administrativo, estoque, pagamento online, histórico e métricas. Os dados já estão separados da interface, então `config.js` pode ser trocado por uma chamada a uma API.

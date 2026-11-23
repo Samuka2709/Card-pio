@@ -1,0 +1,12 @@
+chave,valor,como usar
+aviso,,"Faixa no topo do cardápio. Ex.: Hoje tem rodízio a partir das 19h. Apague o texto para tirar."
+aviso_en,,"O mesmo aviso em inglês (opcional)."
+aviso_es,,"O mesmo aviso em espanhol (opcional)."
+fechado,não,"não = normal. sim = fechado até mudar. Ou datas de feriado e folga: 25/12, 01/01"
+domingo,,"Vazio = usa o horário do sistema. Ex.: 18:00-23:00 ou fechado"
+segunda,,"Dois turnos: 11:30-15:00, 18:00-23:00"
+terca,,
+quarta,,
+quinta,,
+sexta,,
+sabado,,

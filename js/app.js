@@ -5,7 +5,7 @@
   const C = window.CARDAPIO;
   const $ = (s, el = document) => el.querySelector(s);
   const LS_CHAVE = "cardapio:" + (C?.estabelecimento?.nome || "padrao");
-  const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  const DIAS_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
   if (!C) {
     document.getElementById("cardapio").innerHTML = '<p class="vazio">Não foi possível carregar o cardápio: o arquivo js/config.js está ausente ou com erro.</p>';
@@ -20,6 +20,32 @@
   const lsLer = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const lsGravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* armazenamento indisponível */ } };
 
+  /* ---------- Idiomas ---------- */
+  // Ordem: ?lang= no link, escolha salva no celular, idioma do celular. A mensagem do WhatsApp fica sempre em português.
+  const IDI = window.IDIOMAS || { textos: {}, dias: {}, nomes: {} };
+  const IDIOMAS_ATIVOS = (C?.idiomas || ["pt"]).filter((l) => l === "pt" || IDI.textos[l]);
+  const LANG = (() => {
+    const q = new URLSearchParams(location.search).get("lang");
+    const salvo = lsLer("cardapio:idioma");
+    const nav = String(navigator.language || "pt").slice(0, 2).toLowerCase();
+    return [q, salvo, nav].find((l) => l && IDIOMAS_ATIVOS.includes(l)) || "pt";
+  })();
+  const GLOSSARIO = (C?.traducoes || {})[LANG] || {};
+  // T("texto em português", {variaveis}) → texto no idioma escolhido
+  function T(txt, vars) {
+    let s = LANG === "pt" ? txt : (IDI.textos[LANG]?.[txt] ?? GLOSSARIO[txt] ?? txt);
+    if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ""));
+    return s;
+  }
+  // Campo traduzido de um item: item.en.nome, depois o glossário, depois o português
+  const tx = (obj, campo) => {
+    const v = obj?.[campo] ?? "";
+    if (LANG === "pt") return v;
+    return obj?.[LANG]?.[campo] || (typeof v === "string" && GLOSSARIO[v]) || v;
+  };
+  const DIAS = IDI.dias?.[LANG] || DIAS_PT;
+  document.documentElement.lang = { pt: "pt-BR", en: "en", es: "es" }[LANG] || LANG;
+
   const ICONES = {
     conversa: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/>',
     pino: '<path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
@@ -33,11 +59,11 @@
   };
   const icone = (n) => `<svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n]}</svg>`;
 
-  const reservado = (legenda) => `<div class="foto-reservada" role="img" aria-label="Espaço reservado: ${esc(legenda)}">${esc(legenda)}</div>`;
+  const reservado = (legenda) => `<div class="foto-reservada" role="img" aria-label="${esc(T("Espaço reservado: {x}", { x: legenda }))}">${esc(legenda)}</div>`;
   const foto = (src, alt, legenda, { eager = false, w = 320, h = 320, selo = true } = {}) =>
     src
       ? `<img src="${esc(src)}" alt="${esc(legenda || alt)}" width="${w}" height="${h}" data-legenda="${esc(legenda || alt)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">` +
-        (selo && C.fotosIlustrativas ? '<span class="selo-foto" aria-hidden="true">Imagem ilustrativa</span>' : "")
+        (selo && C.fotosIlustrativas ? `<span class="selo-foto" aria-hidden="true">${T("Imagem ilustrativa")}</span>` : "")
       : reservado(legenda || alt || "foto");
 
   // Versão maior da foto para o detalhe (fotos do Unsplash aceitam tamanho na URL)
@@ -91,35 +117,113 @@
       return { ini, fim, i, f };
     });
   }
+  // Fechamentos vindos da aba Avisos: "sim" (fechado até mudar) ou datas (feriados, folgas)
+  const FECHAMENTO = { sempre: false, datas: [] };
+  const somaDias = (data, n) => { const d = new Date(data); d.setDate(d.getDate() + n); return d; };
+  const ddmm = (d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const fechadoNaData = (d) => FECHAMENTO.datas.some((x) => x === ddmm(d) || x === `${ddmm(d)}/${d.getFullYear()}`);
+  const turnosNaData = (d) => (fechadoNaData(d) ? [] : turnos(d.getDay()));
+
   function statusAgora(agora = new Date()) {
-    const dia = agora.getDay();
+    if (FECHAMENTO.sempre) return { aberto: false, texto: T("fechado temporariamente") };
     const min = agora.getHours() * 60 + agora.getMinutes();
-    for (const t of turnos(dia)) if (min >= t.ini && min < t.fim) return { aberto: true, texto: `fecha às ${t.f}` };
-    for (const t of turnos((dia + 6) % 7)) if (t.fim > 1440 && min + 1440 < t.fim) return { aberto: true, texto: `fecha às ${t.f}` };
-    for (let d = 0; d < 7; d++) {
-      const dd = (dia + d) % 7;
-      const prox = turnos(dd).find((t) => d > 0 || t.ini > min);
+    for (const t of turnosNaData(agora)) if (min >= t.ini && min < t.fim) return { aberto: true, texto: T("fecha às {h}", { h: t.f }) };
+    for (const t of turnosNaData(somaDias(agora, -1))) if (t.fim > 1440 && min + 1440 < t.fim) return { aberto: true, texto: T("fecha às {h}", { h: t.f }) };
+    for (let d = 0; d < 14; d++) {
+      const data = somaDias(agora, d);
+      const prox = turnosNaData(data).find((t) => d > 0 || t.ini > min);
       if (prox) {
-        const quando = d === 0 ? "hoje" : d === 1 ? "amanhã" : DIAS[dd].toLowerCase();
-        return { aberto: false, texto: `abre ${quando} às ${prox.i}` };
+        const quando = d === 0 ? T("hoje") : d === 1 ? T("amanhã") : d < 7 ? DIAS[data.getDay()].toLowerCase() : ddmm(data);
+        return { aberto: false, texto: T("abre {q} às {h}", { q: quando, h: prox.i }) };
       }
     }
-    return { aberto: false, texto: "horário não informado" };
+    return { aberto: false, texto: T("horário não informado") };
   }
-  // Horários para agendar: próximo dia com expediente, de 30 em 30 minutos
+  // Horários para agendar: próximo dia com expediente, de 30 em 30 minutos.
+  // valor vai na mensagem (português); rotulo aparece para o cliente.
   function opcoesAgendamento(agora = new Date()) {
-    const dia = agora.getDay();
+    if (FECHAMENTO.sempre) return [];
     const min = agora.getHours() * 60 + agora.getMinutes();
-    for (let d = 0; d < 7; d++) {
-      const dd = (dia + d) % 7;
-      const rotulo = d === 0 ? "Hoje" : d === 1 ? "Amanhã" : DIAS[dd];
+    for (let d = 0; d < 14; d++) {
+      const data = somaDias(agora, d);
+      const pt = d === 0 ? "Hoje" : d === 1 ? "Amanhã" : d < 7 ? DIAS_PT[data.getDay()] : ddmm(data);
+      const rot = d === 0 ? T("Hoje") : d === 1 ? T("Amanhã") : d < 7 ? DIAS[data.getDay()] : ddmm(data);
       const slots = [];
-      turnos(dd).forEach((t) => {
-        for (let m = t.ini + 30; m <= t.fim - 30; m += 30) if (d > 0 || m > min + 30) slots.push(`${rotulo} às ${paraHora(m)}`);
+      turnosNaData(data).forEach((t) => {
+        for (let m = t.ini + 30; m <= t.fim - 30; m += 30) {
+          if (d === 0 && m <= min + 30) continue;
+          const h = paraHora(m);
+          slots.push({ valor: `${pt} às ${h}`, rotulo: T("{d} às {h}", { d: rot, h }) });
+        }
       });
       if (slots.length) return slots;
     }
     return [];
+  }
+
+  /* ---------- Aba "Avisos" da planilha ---------- */
+  const AVISO = {};
+  const CHAVES_DIAS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+  // "18:00-23:00", "11h30 às 15h, 18h às 23h", "fechado"
+  function lerTurnos(v) {
+    const n = normalizar(v);
+    if (!n) return null;
+    if (/fechad|nao abre|folga/.test(n)) return [];
+    const r = [];
+    const re = /(\d{1,2})(?:[:h](\d{2}))?\s*h?\s*(?:-|–|as|ate|a)\s*(\d{1,2})(?:[:h](\d{2}))?/g;
+    let m;
+    while ((m = re.exec(n))) {
+      const a = +m[1], b = +(m[2] || 0), c = +m[3], d = +(m[4] || 0);
+      if (a > 24 || c > 24 || b > 59 || d > 59) continue;
+      const hh = (x, y) => `${String(x % 24).padStart(2, "0")}:${String(y).padStart(2, "0")}`;
+      r.push([hh(a, b), hh(c, d)]);
+    }
+    return r.length ? r : null;
+  }
+  // "24/11", "25/12/2026", "24/11, 25/12" (datas que o Google converte também chegam como 24/11/2026)
+  function lerDatas(v) {
+    return [...String(v).matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)].map((m) => {
+      const dm = `${m[1].padStart(2, "0")}/${m[2].padStart(2, "0")}`;
+      if (!m[3]) return dm;
+      return `${dm}/${m[3].length === 2 ? "20" + m[3] : m[3]}`;
+    });
+  }
+  function aplicarAvisos(linhas) {
+    const v = {};
+    linhas.forEach((l) => { const k = normalizar(l.chave).replace(/\s+/g, "_"); if (k) v[k] = String(l.valor ?? "").trim(); });
+    const texto = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, 240);
+    ["pt", "en", "es"].forEach((l) => { const s = texto(l === "pt" ? v.aviso : v["aviso_" + l]); if (s) AVISO[l] = s; });
+    const f = normalizar(v.fechado);
+    if (f) {
+      FECHAMENTO.sempre = sim(f);
+      FECHAMENTO.datas = lerDatas(v.fechado);
+    }
+    const novos = {};
+    CHAVES_DIAS.forEach((k, i) => { const t = lerTurnos(v[k]); if (t) novos[i] = t; });
+    if (Object.keys(novos).length) C.horarios = { ...(C.horarios || {}), ...novos };
+  }
+  function urlAvisos() {
+    const p = C.planilha || {};
+    if (p.avisos) return urlCSV(p.avisos);
+    const m = String(p.url || "").match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
+    return m && !/\/pub/.test(p.url) ? `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=1&sheet=Avisos` : "";
+  }
+  async function carregarAvisos() {
+    const url = urlAvisos();
+    if (!url) return;
+    const CACHE = LS_CHAVE + ":avisos";
+    // Só vale se a aba tiver as colunas chave e valor (o Google devolve a primeira aba quando "Avisos" não existe)
+    const valida = (txt) => { const l = lerCSV(txt); return l.length && "chave" in l[0] && "valor" in l[0] ? l : null; };
+    try {
+      const r = await buscar(url);
+      const linhas = valida(r);
+      lsGravar(CACHE, linhas ? r : "");
+      if (linhas) aplicarAvisos(linhas);
+    } catch (erro) {
+      const salvo = lsLer(CACHE);
+      const linhas = salvo && valida(salvo);
+      if (linhas) aplicarAvisos(linhas);
+    }
   }
 
   /* ---------- Planilha do Google (opcional) ---------- */
@@ -184,6 +288,12 @@
       if (l.destaque) dados.destaque = sim(l.destaque);
       if (l.mais_pedido) dados.maisPedido = sim(l.mais_pedido);
       if (l.selos) dados.selos = l.selos.split(/[|/]/).map((s) => slug(s)).filter(Boolean);
+      ["en", "es"].forEach((lg) => {
+        const tr = {};
+        if (l["nome_" + lg]) tr.nome = texto(l["nome_" + lg], 80);
+        if (l["descricao_" + lg]) tr.descricao = texto(l["descricao_" + lg], 280);
+        if (tr.nome || tr.descricao) dados[lg] = { ...(porIdCfg[id]?.[lg] || {}), ...tr };
+      });
       if (porIdCfg[id]) Object.assign(porIdCfg[id], dados);
       else if (dados.nome && dados.categoria && dados.preco != null) {
         const novo = { id, legendaFoto: dados.nome, ...dados };
@@ -197,7 +307,17 @@
     const m = String(url).match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
     if (!m || /\/pub|output=csv|gviz/.test(url)) return url;
     const gid = (String(url).match(/[#&?]gid=(\d+)/) || [])[1];
-    return `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv${gid ? "&gid=" + gid : ""}`;
+    return `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=1${gid ? "&gid=" + gid : ""}`;
+  }
+
+  async function buscar(url) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 7000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.text();
+    } finally { clearTimeout(timer); }
   }
 
   async function carregarPlanilha() {
@@ -205,12 +325,7 @@
     if (!url) return;
     const CACHE = LS_CHAVE + ":planilha";
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 7000);
-      const r = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
-      clearTimeout(timer);
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const texto = await r.text();
+      const texto = await buscar(url);
       lsGravar(CACHE, texto);
       aplicarPlanilha(lerCSV(texto));
     } catch (erro) {
@@ -249,29 +364,33 @@
   }
 
   const NOMES_SELOS = C.selos || {};
-  const nomeSelo = (s) => NOMES_SELOS[s] || s.replace(/-/g, " ");
+  const nomeSelo = (s) => T(NOMES_SELOS[s] || s.replace(/-/g, " "));
   const htmlSelos = (p) => (p.selos || []).map((s) => `<span class="selo-info">${esc(nomeSelo(s))}</span>`).join("");
 
   /* ---------- Render: topo ---------- */
   function renderTopo() {
     document.title = `${E.nome || "Cardápio"} | Cardápio e pedidos`;
     $('meta[name="description"]').content = E.descricao || "Cardápio digital com pedido pelo WhatsApp.";
-    $("#capa").innerHTML = foto(E.capa, `Ambiente de ${E.nome}`, `Ambiente de ${E.nome}`, { eager: true, w: 1200, h: 480 });
-    $("#logo").innerHTML = foto(E.logo, `Logotipo de ${E.nome}`, `Logotipo de ${E.nome}`, { eager: true, w: 160, h: 160, selo: false });
+    // Textos fixos do index.html
+    document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = T(el.dataset.t)));
+    document.querySelectorAll("[data-t-aria]").forEach((el) => el.setAttribute("aria-label", T(el.dataset.tAria)));
+    renderIdiomas();
+    $("#capa").innerHTML = foto(E.capa, T("Ambiente de {n}", { n: E.nome }), T("Ambiente de {n}", { n: E.nome }), { eager: true, w: 1200, h: 480 });
+    $("#logo").innerHTML = foto(E.logo, T("Logotipo de {n}", { n: E.nome }), T("Logotipo de {n}", { n: E.nome }), { eager: true, w: 160, h: 160, selo: false });
     $("#nome").textContent = E.nome || "";
-    $("#descricao").textContent = E.descricao || "";
+    $("#descricao").textContent = tx(E, "descricao");
     $("#aviso-demo").hidden = !C.demonstracao;
     if (MESA) {
       const av = $("#aviso-mesa");
       av.hidden = false;
-      av.innerHTML = `Você está na <strong>mesa ${esc(MESA)}</strong>. Monte o pedido e envie pelo WhatsApp para o atendimento.`;
+      av.innerHTML = T("Você está na <strong>mesa {m}</strong>. Monte o pedido e envie pelo WhatsApp para o atendimento.", { m: esc(MESA) });
     }
 
     const bW = $("#btn-whats-topo");
     bW.innerHTML = icone("conversa") + "WhatsApp";
     if (numeroWhats) bW.href = linkWhats(""); else bW.remove();
     const bM = $("#btn-mapa-topo");
-    bM.innerHTML = icone("pino") + "Como chegar";
+    bM.innerHTML = icone("pino") + esc(T("Como chegar"));
     if (E.mapsUrl) bM.href = E.mapsUrl; else bM.remove();
     atualizarStatus();
     setInterval(atualizarStatus, 60000);
@@ -322,7 +441,36 @@
     const s = statusAgora();
     const el = $("#status");
     el.dataset.aberto = s.aberto;
-    el.innerHTML = `<strong>${s.aberto ? "Aberto agora" : "Fechado"}</strong>, ${esc(s.texto)}`;
+    el.innerHTML = `<strong>${T(s.aberto ? "Aberto agora" : "Fechado")}</strong>, ${esc(s.texto)}`;
+  }
+
+  // Seletor de idioma (só aparece com mais de um idioma em C.idiomas)
+  function renderIdiomas() {
+    const box = $("#idiomas");
+    if (!box || IDIOMAS_ATIVOS.length < 2) return;
+    box.hidden = false;
+    box.setAttribute("aria-label", T("Idioma"));
+    box.innerHTML = IDIOMAS_ATIVOS.map((l) =>
+      `<button type="button" lang="${l}" data-idioma="${l}" aria-pressed="${l === LANG}" title="${esc(IDI.nomes?.[l] || l)}">${l.toUpperCase()}</button>`).join("");
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-idioma]");
+      if (!b || b.dataset.idioma === LANG) return;
+      lsGravar("cardapio:idioma", b.dataset.idioma);
+      const u = new URL(location.href);
+      // Sem armazenamento no celular, o idioma vai no próprio link
+      if (lsLer("cardapio:idioma") === b.dataset.idioma) u.searchParams.delete("lang");
+      else u.searchParams.set("lang", b.dataset.idioma);
+      location.replace(u.href);
+    });
+  }
+
+  // Aviso do dia (aba Avisos da planilha)
+  function renderAviso() {
+    const el = $("#aviso-loja");
+    const txt = AVISO[LANG] || AVISO.pt;
+    if (!el || !txt) return;
+    el.hidden = false;
+    el.innerHTML = `<span class="sr">${esc(T("Aviso do estabelecimento"))}: </span>${esc(txt)}`;
   }
 
   /* ---------- Render: cardápio ---------- */
@@ -330,27 +478,29 @@
     const { valor, aPartir } = precoMinimo(p);
     const destaque = p.destaque && p.disponivel;
     const selos = [
-      !p.disponivel ? '<span class="selo selo-neutro">Indisponível</span>' : "",
-      p.precoOriginal && p.disponivel ? '<span class="selo">Promoção</span>' : ""
+      !p.disponivel ? `<span class="selo selo-neutro">${T("Indisponível")}</span>` : "",
+      p.precoOriginal && p.disponivel ? `<span class="selo">${T("Promoção")}</span>` : ""
     ].join("");
-    const categoria = (C.categorias || []).find((c) => c.id === p.categoria)?.nome || "";
-    const busca = normalizar([p.nome, p.descricao, categoria, ...(p.selos || []).map(nomeSelo)].join(" "));
+    const cat = (C.categorias || []).find((c) => c.id === p.categoria);
+    const nome = tx(p, "nome"), desc = tx(p, "descricao");
+    // Busca funciona no idioma escolhido e também em português
+    const busca = normalizar([nome, desc, p.nome, p.descricao, tx(cat, "nome"), cat?.nome, ...(p.selos || []).map(nomeSelo)].join(" "));
     return `
       <button type="button" class="produto ${destaque ? "produto-destaque" : ""}" data-produto="${esc(p.id)}"
         data-busca="${esc(busca)}" data-selos="${esc((p.selos || []).join(" "))}"
-        ${p.disponivel ? "" : 'aria-disabled="true"'} aria-label="${esc(p.nome)}, ${aPartir ? "a partir de " : ""}${dinheiro(valor)}${p.disponivel ? "" : ", indisponível"}">
+        ${p.disponivel ? "" : 'aria-disabled="true"'} aria-label="${esc(nome)}, ${aPartir ? esc(T("a partir de")) + " " : ""}${dinheiro(valor)}${p.disponivel ? "" : ", " + esc(T("indisponível"))}">
         <span class="produto-texto">
-          <h3>${esc(p.nome)}</h3>
-          <p>${esc(p.descricao)}</p>
+          <h3>${esc(nome)}</h3>
+          <p>${esc(desc)}</p>
           ${p.selos?.length ? `<span class="linha-selos">${htmlSelos(p)}</span>` : ""}
           <span class="linha-preco">
-            ${aPartir ? '<span class="a-partir">a partir de</span>' : ""}
+            ${aPartir ? `<span class="a-partir">${T("a partir de")}</span>` : ""}
             <span class="preco${p.precoOriginal ? " preco-promo" : ""}">${dinheiro(valor)}</span>
             ${p.precoOriginal ? `<span class="preco-antigo">${dinheiro(p.precoOriginal)}</span>` : ""}
             ${selos}
           </span>
         </span>
-        <span class="produto-foto">${foto(p.foto, p.nome, p.legendaFoto, destaque ? { w: 800, h: 450 } : {})}</span>
+        <span class="produto-foto">${foto(p.foto, nome, LANG === "pt" ? p.legendaFoto : nome, destaque ? { w: 800, h: 450 } : {})}</span>
       </button>`;
   }
 
@@ -366,24 +516,24 @@
     }
     const selosUsados = [...new Set(produtos.flatMap((p) => p.selos || []))];
     $("#categorias-trilho").innerHTML = lista
-      .map((c) => `<button type="button" class="chip" data-alvo="sec-${esc(c.id)}">${esc(c.nome)}</button>`)
+      .map((c) => `<button type="button" class="chip" data-alvo="sec-${esc(c.id)}">${esc(tx(c, "nome"))}</button>`)
       .join("");
     main.innerHTML = `
       <div class="ferramentas">
         <label class="busca">
           ${icone("busca")}
-          <span class="sr">Buscar no cardápio</span>
-          <input type="search" id="busca" placeholder="Buscar no cardápio" autocomplete="off" enterkeyhint="search">
+          <span class="sr">${T("Buscar no cardápio")}</span>
+          <input type="search" id="busca" placeholder="${esc(T("Buscar no cardápio"))}" autocomplete="off" enterkeyhint="search">
         </label>
-        ${selosUsados.length ? `<div class="filtros" role="group" aria-label="Filtrar por">
+        ${selosUsados.length ? `<div class="filtros" role="group" aria-label="${esc(T("Filtrar por"))}">
           ${selosUsados.map((s) => `<button type="button" class="filtro" data-selo="${esc(s)}" aria-pressed="false">${esc(nomeSelo(s))}</button>`).join("")}
         </div>` : ""}
       </div>
       <p class="vazio" id="sem-resultado" hidden></p>` +
       lista.map((c) => `
         <section class="secao" id="sec-${esc(c.id)}" aria-labelledby="tit-${esc(c.id)}">
-          <h2 id="tit-${esc(c.id)}">${esc(c.nome)}</h2>
-          <p class="secao-contagem">${c.itens.length} ${c.itens.length === 1 ? "item" : "itens"}</p>
+          <h2 id="tit-${esc(c.id)}">${esc(tx(c, "nome"))}</h2>
+          <p class="secao-contagem">${T(c.itens.length === 1 ? "{n} item" : "{n} itens", { n: c.itens.length })}</p>
           <div class="lista">${c.itens.map(cardProduto).join("")}</div>
         </section>`).join("");
 
@@ -432,7 +582,7 @@
     const vazio = $("#sem-resultado");
     const ativo = termos.length || filtro.selos.size;
     vazio.hidden = !ativo || visiveis > 0;
-    if (!vazio.hidden) vazio.innerHTML = `Nenhum item encontrado. <button type="button" class="link-acao" data-limpar-filtro>Limpar busca e filtros</button>`;
+    if (!vazio.hidden) vazio.innerHTML = `${T("Nenhum item encontrado.")} <button type="button" class="link-acao" data-limpar-filtro>${T("Limpar busca e filtros")}</button>`;
   }
   function limparFiltro() {
     filtro.texto = ""; filtro.selos.clear();
@@ -471,44 +621,54 @@
 
   /* ---------- Rodapé ---------- */
   function renderRodape() {
-    const hoje = new Date().getDay();
+    const agora = new Date();
+    const hoje = agora.getDay();
     const ordem = [1, 2, 3, 4, 5, 6, 0];
+    // Mostra a semana que vem pela frente: um feriado cadastrado aparece como "Fechado" no dia dele
     const horas = ordem.map((d) => {
-      const t = C.horarios?.[d] || [];
-      const txt = t.length ? t.map(([i, f]) => `${i} às ${f}`).join("<br>") : "Fechado";
+      const data = somaDias(agora, (d - hoje + 7) % 7);
+      const t = FECHAMENTO.sempre ? [] : turnosNaData(data);
+      const txt = t.length ? t.map((x) => esc(T("{i} às {f}", { i: x.i, f: x.f }))).join("<br>") : T("Fechado");
       return `<li${d === hoje ? ' data-hoje="true"' : ""}${t.length ? "" : ' data-fechado="true"'}>
-        <span>${DIAS[d]}${d === hoje ? '<span class="hoje">hoje</span>' : ""}</span><span>${txt}</span></li>`;
+        <span>${DIAS[d]}${d === hoje ? `<span class="hoje">${T("hoje")}</span>` : ""}</span><span>${txt}</span></li>`;
     }).join("");
     const st = statusAgora();
     const links = [
-      E.mapsUrl ? `<a class="botao botao-claro" href="${esc(E.mapsUrl)}" target="_blank" rel="noopener">${icone("pino")}Como chegar</a>` : "",
+      E.mapsUrl ? `<a class="botao botao-claro" href="${esc(E.mapsUrl)}" target="_blank" rel="noopener">${icone("pino")}${T("Como chegar")}</a>` : "",
       numeroWhats ? `<a class="botao botao-contorno" href="${linkWhats("")}" target="_blank" rel="noopener">${icone("conversa")}WhatsApp</a>` : "",
       E.instagram ? `<a class="botao botao-contorno" href="https://instagram.com/${esc(E.instagram)}" target="_blank" rel="noopener">${icone("instagram")}@${esc(E.instagram)}</a>` : ""
     ].join("");
-    const infos = [...(E.informacoes || [])];
-    if (ENTREGA.pedidoMinimo) infos.unshift(`Pedido mínimo para entrega: ${dinheiro(ENTREGA.pedidoMinimo)}.`);
+    const infos = [...(tx(E, "informacoes") || [])];
+    if (ENTREGA.pedidoMinimo) infos.unshift(T("Pedido mínimo para entrega: {v}.", { v: dinheiro(ENTREGA.pedidoMinimo) }));
+    // Próximos fechamentos (feriados) cadastrados na planilha
+    const anoAtual = agora.getFullYear();
+    const proximas = FECHAMENTO.datas.filter((x) => {
+      const [d, m, a] = x.split("/").map(Number);
+      return somaDias(new Date(a || anoAtual, m - 1, d), 1) >= agora;
+    });
+    if (proximas.length) infos.unshift(T("Fechado nestes dias: {d}.", { d: proximas.map((x) => x.slice(0, 5)).join(", ") }));
     $("#informacoes").innerHTML = `
       <div class="rodape-inner">
         <div class="rodape-marca">
-          <div class="rodape-logo">${foto(E.logo, `Logotipo de ${E.nome}`, `Logotipo de ${E.nome}`, { w: 96, h: 96, selo: false })}</div>
+          <div class="rodape-logo">${foto(E.logo, T("Logotipo de {n}", { n: E.nome }), T("Logotipo de {n}", { n: E.nome }), { w: 96, h: 96, selo: false })}</div>
           <p class="rodape-nome">${esc(E.nome)}</p>
-          <p class="rodape-endereco">${icone("pino")}<span>${esc(E.endereco || "Endereço não informado.")}</span></p>
+          <p class="rodape-endereco">${icone("pino")}<span>${esc(E.endereco || T("Endereço não informado."))}</span></p>
           ${links ? `<div class="links-rodape">${links}</div>` : ""}
         </div>
         <div class="rodape-bloco">
-          <h2>Horários</h2>
-          <p class="rodape-status" data-aberto="${st.aberto}"><strong>${st.aberto ? "Aberto agora" : "Fechado agora"}</strong>, ${esc(st.texto)}</p>
+          <h2>${T("Horários")}</h2>
+          <p class="rodape-status" data-aberto="${st.aberto}"><strong>${T(st.aberto ? "Aberto agora" : "Fechado agora")}</strong>, ${esc(st.texto)}</p>
           <ul class="horarios">${horas}</ul>
         </div>
         <div class="rodape-bloco">
-          ${E.pagamentos?.length ? `<h2>Formas de pagamento</h2><ul class="pagamentos">${E.pagamentos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-          ${BAIRROS.length ? `<h2>Taxas de entrega</h2><ul class="infos">${BAIRROS.map((b) => `<li>${esc(b.nome)}: ${b.taxa ? dinheiro(b.taxa) : "grátis"}</li>`).join("")}</ul>` : ""}
-          ${infos.length ? `<h2>Bom saber</h2><ul class="infos">${infos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+          ${E.pagamentos?.length ? `<h2>${T("Formas de pagamento")}</h2><ul class="pagamentos">${E.pagamentos.map((x) => `<li>${esc(T(x))}</li>`).join("")}</ul>` : ""}
+          ${BAIRROS.length ? `<h2>${T("Taxas de entrega")}</h2><ul class="infos">${BAIRROS.map((b) => `<li>${esc(b.nome)}: ${b.taxa ? dinheiro(b.taxa) : T("grátis")}</li>`).join("")}</ul>` : ""}
+          ${infos.length ? `<h2>${T("Bom saber")}</h2><ul class="infos">${infos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
         </div>
       </div>
       <div class="rodape-base">
         <span>© ${new Date().getFullYear()} ${esc(E.nome)}</span>
-        <span>Preços sujeitos a confirmação pelo estabelecimento.${C.creditoFotos && C.fotosIlustrativas ? " " + esc(C.creditoFotos) + "." : ""}</span>
+        <span>${T("Preços sujeitos a confirmação pelo estabelecimento.")}${C.creditoFotos && C.fotosIlustrativas ? " " + esc(C.creditoFotos) + "." : ""}</span>
       </div>`;
   }
 
@@ -528,9 +688,9 @@
 
   function regraTexto(g) {
     const min = g.min || 0, max = g.max || 1;
-    if (min >= 1 && max === 1) return "Obrigatório";
-    if (min >= 1) return `Escolha de ${min} a ${max}`;
-    return max === 1 ? "Opcional" : `Opcional, até ${max}`;
+    if (min >= 1 && max === 1) return T("Obrigatório");
+    if (min >= 1) return T("Escolha de {a} a {b}", { a: min, b: max });
+    return max === 1 ? T("Opcional") : T("Opcional, até {n}", { n: max });
   }
 
   // Preço unitário e pendências para um produto e uma seleção { grupoId: [opcaoId] }
@@ -560,40 +720,40 @@
       <div class="painel-inner">
         <div class="painel-rolagem">
           <div style="position:relative">
-            <div class="detalhe-foto">${foto(p.fotoGrande || ampliar(p.foto), p.nome, p.legendaFoto, { eager: true, w: 800, h: 600 })}</div>
-            <button type="button" class="fechar fechar-flutuante" data-fechar aria-label="Fechar">${icone("fechar")}</button>
+            <div class="detalhe-foto">${foto(p.fotoGrande || ampliar(p.foto), tx(p, "nome"), LANG === "pt" ? p.legendaFoto : tx(p, "nome"), { eager: true, w: 800, h: 600 })}</div>
+            <button type="button" class="fechar fechar-flutuante" data-fechar aria-label="${esc(T("Fechar"))}">${icone("fechar")}</button>
           </div>
           <div class="detalhe-info">
-            <h2 id="produto-titulo">${esc(p.nome)}</h2>
-            ${p.descricao ? `<p>${esc(p.descricao)}</p>` : ""}
+            <h2 id="produto-titulo">${esc(tx(p, "nome"))}</h2>
+            ${p.descricao ? `<p>${esc(tx(p, "descricao"))}</p>` : ""}
             ${p.selos?.length ? `<div class="linha-selos">${htmlSelos(p)}</div>` : ""}
           </div>
           ${p.grupos.map((g) => `
             <fieldset class="grupo" data-grupo="${esc(g.id)}">
-              <legend><span>${esc(g.nome)}</span><span class="grupo-regra" data-obrigatorio="${(g.min || 0) >= 1}">${regraTexto(g)}</span></legend>
+              <legend><span>${esc(tx(g, "nome"))}</span><span class="grupo-regra" data-obrigatorio="${(g.min || 0) >= 1}">${regraTexto(g)}</span></legend>
               ${g.opcoes.map((o) => `
                 <label class="opcao">
                   <input type="${(g.max || 1) === 1 ? "radio" : "checkbox"}" name="g-${esc(g.id)}" value="${esc(o.id)}">
-                  <span>${esc(o.nome)}</span>
+                  <span>${esc(tx(o, "nome"))}</span>
                   <span class="preco">${o.preco ? "+ " + dinheiro(o.preco) : ""}</span>
                 </label>`).join("")}
-              ${(g.min || 0) < 1 && (g.max || 1) === 1 ? `<label class="opcao"><input type="radio" name="g-${esc(g.id)}" value="" checked><span>Sem ${esc(g.nome.toLowerCase())}</span><span class="preco"></span></label>` : ""}
+              ${(g.min || 0) < 1 && (g.max || 1) === 1 ? `<label class="opcao"><input type="radio" name="g-${esc(g.id)}" value="" checked><span>${esc(T("Sem {g}", { g: tx(g, "nome").toLowerCase() }))}</span><span class="preco"></span></label>` : ""}
             </fieldset>`).join("")}
           <div class="campo">
-            <label for="obs">Observações</label>
-            <textarea id="obs" maxlength="140" placeholder="Ex.: sem cebola, molho à parte"></textarea>
-            <p class="ajuda">Pedidos especiais estão sujeitos à confirmação do estabelecimento.</p>
+            <label for="obs">${T("Observações")}</label>
+            <textarea id="obs" maxlength="140" placeholder="${esc(T("Ex.: sem cebola, molho à parte"))}"></textarea>
+            <p class="ajuda">${T("Pedidos especiais estão sujeitos à confirmação do estabelecimento.")}</p>
           </div>
         </div>
         <div class="painel-rodape">
           <p class="erro" id="produto-erro" aria-live="polite"></p>
           <div class="acoes-adicionar">
-            <div class="quantidade" role="group" aria-label="Quantidade">
-              <button type="button" data-qtd="-1" aria-label="Diminuir quantidade">${icone("menos")}</button>
+            <div class="quantidade" role="group" aria-label="${esc(T("Quantidade"))}">
+              <button type="button" data-qtd="-1" aria-label="${esc(T("Diminuir quantidade"))}">${icone("menos")}</button>
               <output id="qtd" aria-live="polite">1</output>
-              <button type="button" data-qtd="1" aria-label="Aumentar quantidade">${icone("mais")}</button>
+              <button type="button" data-qtd="1" aria-label="${esc(T("Aumentar quantidade"))}">${icone("mais")}</button>
             </div>
-            <button type="button" class="botao botao-primario botao-bloco" id="btn-adicionar"><span>Adicionar</span><span class="preco" id="preco-modal"></span></button>
+            <button type="button" class="botao botao-primario botao-bloco" id="btn-adicionar"><span>${T("Adicionar")}</span><span class="preco" id="preco-modal"></span></button>
           </div>
         </div>
       </div>`;
@@ -608,7 +768,7 @@
     const btn = $("#btn-adicionar", dlgProduto);
     btn.setAttribute("aria-disabled", faltas.length ? "true" : "false");
     const erro = $("#produto-erro", dlgProduto);
-    if (!erro.dataset.alerta) erro.textContent = faltas.length ? `Falta escolher: ${faltas.map((f) => f.nome.toLowerCase()).join(", ")}` : "";
+    if (!erro.dataset.alerta) erro.textContent = faltas.length ? T("Falta escolher: {x}", { x: faltas.map((f) => tx(f, "nome").toLowerCase()).join(", ") }) : "";
     erro.classList.toggle("pendente", !erro.dataset.alerta);
     estado.p.grupos.forEach((g) => {
       const fs = dlgProduto.querySelector(`[data-grupo="${CSS.escape(g.id)}"]`);
@@ -639,7 +799,7 @@
         const erro = $("#produto-erro", dlgProduto);
         erro.dataset.alerta = "1";
         erro.classList.remove("pendente");
-        erro.textContent = `Escolha uma opção em "${faltas[0].nome}" para continuar.`;
+        erro.textContent = T("Escolha uma opção em \"{g}\" para continuar.", { g: tx(faltas[0], "nome") });
         dlgProduto.querySelector(`[data-grupo="${CSS.escape(faltas[0].id)}"]`).scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
@@ -719,7 +879,7 @@
       if (!r || r.faltas.length || !r.valido) { fora++; return; }
       adicionarItem(p, i.sel || {}, i.qtd, i.obs || "");
     });
-    avisoRepetir = fora ? `${fora} ${fora === 1 ? "item do último pedido não está disponível agora" : "itens do último pedido não estão disponíveis agora"}.` : "";
+    avisoRepetir = fora ? T(fora === 1 ? "{n} item do último pedido não está disponível agora." : "{n} itens do último pedido não estão disponíveis agora.", { n: fora }) : "";
     persistir(); renderCarrinho();
   }
   let avisoRepetir = "";
@@ -754,20 +914,33 @@
   }
 
   // Fechado: "agendar" (pede horário), "bloquear" (não envia) ou "avisar" (só informa)
-  const modoFechado = () => ENTREGA.quandoFechado || "agendar";
+  // Sem horário para agendar (ex.: fechado temporariamente), "agendar" vira "bloquear"
+  const modoFechado = () => {
+    const m = ENTREGA.quandoFechado || "agendar";
+    return m === "agendar" && !opcoesAgendamento().length ? "bloquear" : m;
+  };
   const fechadoAgora = () => !MESA && !statusAgora().aberto;
 
   function pendencias(t = totais()) {
-    if (!numeroWhats) return "O número de WhatsApp do estabelecimento ainda não foi configurado.";
-    if (fechadoAgora() && modoFechado() === "bloquear") return `Estamos fechados agora (${statusAgora().texto}). Os pedidos voltam quando abrirmos.`;
-    if (fechadoAgora() && modoFechado() === "agendar" && !checkout.agendamento) return "Escolha um horário para agendar o pedido.";
+    if (!numeroWhats) return T("O número de WhatsApp do estabelecimento ainda não foi configurado.");
+    if (fechadoAgora() && modoFechado() === "bloquear") return T("Estamos fechados agora ({s}). Os pedidos voltam quando abrirmos.", { s: statusAgora().texto });
+    if (fechadoAgora() && modoFechado() === "agendar" && !checkout.agendamento) return T("Escolha um horário para agendar o pedido.");
     if (ehEntrega()) {
-      if (t.taxaStatus === "bairro") return "Escolha o bairro de entrega.";
-      if (!checkout.endereco) return "Informe o endereço de entrega para continuar.";
+      if (t.taxaStatus === "bairro") return T("Escolha o bairro de entrega.");
+      if (!checkout.endereco) return T("Informe o endereço de entrega para continuar.");
       const base = t.subtotal - t.desconto;
-      if (ENTREGA.pedidoMinimo && base < ENTREGA.pedidoMinimo) return `Pedido mínimo para entrega: ${dinheiro(ENTREGA.pedidoMinimo)}. Faltam ${dinheiro(ENTREGA.pedidoMinimo - base)}.`;
+      if (ENTREGA.pedidoMinimo && base < ENTREGA.pedidoMinimo) return T("Pedido mínimo para entrega: {v}. Faltam {f}.", { v: dinheiro(ENTREGA.pedidoMinimo), f: dinheiro(ENTREGA.pedidoMinimo - base) });
     }
     return "";
+  }
+
+  // Nome e opções do item no idioma do cliente (a mensagem usa os nomes em português)
+  const nomeItem = (i) => (porId[i.produtoId] ? tx(porId[i.produtoId], "nome") : i.nome);
+  function detalhesTela(i) {
+    const p = porId[i.produtoId];
+    if (LANG === "pt" || !p || !i.sel) return detalhesItem(i);
+    return p.grupos.filter((g) => i.sel[g.id]?.length).map((g) =>
+      `${tx(g, "nome")}: ${i.sel[g.id].map((oid) => tx(g.opcoes.find((o) => o.id === oid), "nome")).join(", ")}`);
   }
 
   function detalhesItem(i) {
@@ -799,21 +972,22 @@
     if (checkout.nome) L.push(`Nome: ${checkout.nome}`);
     if (ehEntrega() && checkout.endereco) L.push(`Endereço: ${checkout.endereco}${checkout.bairro ? `, ${checkout.bairro}` : ""}`);
     if (checkout.pagamento) L.push(`Pagamento: ${checkout.pagamento}`);
+    if (LANG !== "pt") L.push(`Idioma do cliente: ${{ en: "inglês", es: "espanhol" }[LANG] || LANG}`);
     if (escolheuPix() && PIX.chave && t.taxaStatus === "ok") L.push("", "Vou pagar pelo Pix gerado no cardápio e enviar o comprovante nesta conversa.");
     return L.join("\n");
   }
 
   function htmlVazio(ctx) {
     const ultimo = lsLer(LS_ULTIMO);
-    const resumo = ultimo?.itens?.length ? ultimo.itens.map((i) => `${i.qtd}x ${i.nome}`).join(", ") : "";
+    const resumo = ultimo?.itens?.length ? ultimo.itens.map((i) => `${i.qtd}x ${nomeItem(i)}`).join(", ") : "";
     return `
-      <div class="painel-cabeca"><h2>Seu pedido</h2>${ctx === "modal" ? `<button type="button" class="fechar" data-fechar aria-label="Fechar">${icone("fechar")}</button>` : ""}</div>
-      <div class="carrinho-vazio"><strong>Seu pedido está vazio</strong>Escolha um item do cardápio para começar.</div>
+      <div class="painel-cabeca"><h2>${T("Seu pedido")}</h2>${ctx === "modal" ? `<button type="button" class="fechar" data-fechar aria-label="${esc(T("Fechar"))}">${icone("fechar")}</button>` : ""}</div>
+      <div class="carrinho-vazio"><strong>${T("Seu pedido está vazio")}</strong>${T("Escolha um item do cardápio para começar.")}</div>
       ${resumo ? `
         <div class="ultimo-pedido">
-          <p class="ultimo-titulo">Seu último pedido</p>
+          <p class="ultimo-titulo">${T("Seu último pedido")}</p>
           <p class="ultimo-itens">${esc(resumo)}</p>
-          <button type="button" class="botao botao-bloco" data-repetir>${icone("repetir")}Pedir de novo</button>
+          <button type="button" class="botao botao-bloco" data-repetir>${icone("repetir")}${T("Pedir de novo")}</button>
         </div>` : ""}`;
   }
 
@@ -824,14 +998,14 @@
     const opcoes = modo === "agendar" ? opcoesAgendamento() : [];
     return `
       <div class="aviso-fechado">
-        <p>${icone("relogio")}<span><strong>Estamos fechados agora</strong>, ${esc(st.texto)}.
-        ${modo === "bloquear" ? "Você pode montar o pedido e enviar quando abrirmos." : modo === "agendar" ? "Agende seu pedido para quando abrirmos." : "Seu pedido será atendido quando abrirmos."}</span></p>
+        <p>${icone("relogio")}<span><strong>${T("Estamos fechados agora")}</strong>, ${esc(st.texto)}.
+        ${T(modo === "bloquear" ? "Você pode montar o pedido e enviar quando abrirmos." : modo === "agendar" ? "Agende seu pedido para quando abrirmos." : "Seu pedido será atendido quando abrirmos.")}</span></p>
         ${opcoes.length ? `
           <div class="campo campo-compacto">
-            <label for="ag-${ctx}">Horário do pedido</label>
+            <label for="ag-${ctx}">${T("Horário do pedido")}</label>
             <select id="ag-${ctx}" data-campo="agendamento">
-              <option value="">Escolha um horário</option>
-              ${opcoes.map((o) => `<option ${o === checkout.agendamento ? "selected" : ""}>${esc(o)}</option>`).join("")}
+              <option value="">${T("Escolha um horário")}</option>
+              ${opcoes.map((o) => `<option value="${esc(o.valor)}" ${o.valor === checkout.agendamento ? "selected" : ""}>${esc(o.rotulo)}</option>`).join("")}
             </select>
           </div>` : ""}
       </div>`;
@@ -843,17 +1017,17 @@
       const c = t.cup.cupom;
       return `
         <div class="cupom-aplicado">
-          <div><strong>Cupom ${esc(c.codigo.toUpperCase())}</strong>
-          <span>${t.cup.falta ? `Vale a partir de ${dinheiro(c.minimo)}. Faltam ${dinheiro(t.cup.falta)}.` : esc(c.descricao || "Desconto aplicado")}</span></div>
-          <button type="button" class="link-remover" data-remover-cupom>Remover</button>
+          <div><strong>${esc(T("Cupom {c}", { c: c.codigo.toUpperCase() }))}</strong>
+          <span>${t.cup.falta ? T("Vale a partir de {v}. Faltam {f}.", { v: dinheiro(c.minimo), f: dinheiro(t.cup.falta) }) : esc(tx(c, "descricao") || T("Desconto aplicado"))}</span></div>
+          <button type="button" class="link-remover" data-remover-cupom>${T("Remover")}</button>
         </div>`;
     }
     return `
       <div class="campo cupom">
-        <label for="cupom-${ctx}">Cupom de desconto</label>
+        <label for="cupom-${ctx}">${T("Cupom de desconto")}</label>
         <div class="cupom-linha">
-          <input id="cupom-${ctx}" data-cupom-input autocomplete="off" autocapitalize="characters" placeholder="Digite o código">
-          <button type="button" class="botao" data-aplicar-cupom>Aplicar</button>
+          <input id="cupom-${ctx}" data-cupom-input autocomplete="off" autocapitalize="characters" placeholder="${esc(T("Digite o código"))}">
+          <button type="button" class="botao" data-aplicar-cupom>${T("Aplicar")}</button>
         </div>
         ${avisoCupom ? `<p class="erro" role="alert">${esc(avisoCupom)}</p>` : ""}
       </div>`;
@@ -868,7 +1042,7 @@
     const pend = pendencias(t);
     return `
       <div class="painel-inner">
-        <div class="painel-cabeca"><div><h2>Seu pedido</h2>${checkout.pedido ? `<p class="codigo-pedido">Código ${esc(checkout.pedido)}${MESA ? ` · Mesa ${esc(MESA)}` : ""}</p>` : ""}</div>${ctx === "modal" ? `<button type="button" class="fechar" data-fechar aria-label="Fechar">${icone("fechar")}</button>` : ""}</div>
+        <div class="painel-cabeca"><div><h2>${T("Seu pedido")}</h2>${checkout.pedido ? `<p class="codigo-pedido">${esc(T("Código {c}", { c: checkout.pedido }))}${MESA ? ` · ${esc(T("Mesa {m}", { m: MESA }))}` : ""}</p>` : ""}</div>${ctx === "modal" ? `<button type="button" class="fechar" data-fechar aria-label="${esc(T("Fechar"))}">${icone("fechar")}</button>` : ""}</div>
         <div class="painel-rolagem">
           ${avisoRepetir ? `<p class="aviso-repetir" role="status">${esc(avisoRepetir)}</p>` : ""}
           <ul class="carrinho-itens">
@@ -876,71 +1050,71 @@
               <li class="item">
                 <div class="item-topo">
                   <div>
-                    <div class="item-nome">${esc(i.nome)}</div>
-                    ${[...detalhesItem(i), i.obs ? "Obs.: " + i.obs : ""].filter(Boolean).map((d) => `<p class="item-detalhes">${esc(d)}</p>`).join("")}
+                    <div class="item-nome">${esc(nomeItem(i))}</div>
+                    ${[...detalhesTela(i), i.obs ? T("Obs.: {x}", { x: i.obs }) : ""].filter(Boolean).map((d) => `<p class="item-detalhes">${esc(d)}</p>`).join("")}
                   </div>
                   <span class="preco">${dinheiro(i.unit * i.qtd)}</span>
                 </div>
                 <div class="item-acoes">
-                  <div class="quantidade" role="group" aria-label="Quantidade de ${esc(i.nome)}">
-                    <button type="button" data-item="${idx}" data-delta="-1" aria-label="Diminuir">${icone("menos")}</button>
+                  <div class="quantidade" role="group" aria-label="${esc(T("Quantidade de {n}", { n: nomeItem(i) }))}">
+                    <button type="button" data-item="${idx}" data-delta="-1" aria-label="${esc(T("Diminuir"))}">${icone("menos")}</button>
                     <output>${i.qtd}</output>
-                    <button type="button" data-item="${idx}" data-delta="1" aria-label="Aumentar" ${i.qtd >= 99 ? "disabled" : ""}>${icone("mais")}</button>
+                    <button type="button" data-item="${idx}" data-delta="1" aria-label="${esc(T("Aumentar"))}" ${i.qtd >= 99 ? "disabled" : ""}>${icone("mais")}</button>
                   </div>
-                  <button type="button" class="link-remover" data-remover="${idx}">Remover</button>
+                  <button type="button" class="link-remover" data-remover="${idx}">${T("Remover")}</button>
                 </div>
               </li>`).join("")}
           </ul>
           ${htmlFechado(ctx)}
           ${mods.length && !MESA ? `
-            <h3 class="secao-carrinho-titulo">Como você quer receber</h3>
-            <div class="modalidades" role="radiogroup" aria-label="Modalidade de atendimento">
-              ${mods.map((x) => `<label><input type="radio" name="mod-${ctx}" value="${esc(x.id)}" ${x.id === checkout.modalidade ? "checked" : ""}><span>${esc(x.nome)}</span></label>`).join("")}
+            <h3 class="secao-carrinho-titulo">${T("Como você quer receber")}</h3>
+            <div class="modalidades" role="radiogroup" aria-label="${esc(T("Modalidade de atendimento"))}">
+              ${mods.map((x) => `<label><input type="radio" name="mod-${ctx}" value="${esc(x.id)}" ${x.id === checkout.modalidade ? "checked" : ""}><span>${esc(tx(x, "nome"))}</span></label>`).join("")}
             </div>` : ""}
           <div class="campo">
-            <label for="nome-${ctx}">Seu nome (opcional)</label>
+            <label for="nome-${ctx}">${T("Seu nome (opcional)")}</label>
             <input id="nome-${ctx}" data-campo="nome" autocomplete="name" value="${esc(checkout.nome)}">
           </div>
           ${m?.pedeEndereco && BAIRROS.length ? `
             <div class="campo">
-              <label for="bairro-${ctx}">Bairro</label>
+              <label for="bairro-${ctx}">${T("Bairro")}</label>
               <select id="bairro-${ctx}" data-campo="bairro">
-                <option value="">Escolha o bairro</option>
-                ${BAIRROS.map((b) => `<option value="${esc(b.nome)}" ${b.nome === checkout.bairro ? "selected" : ""}>${esc(b.nome)} (${b.taxa ? dinheiro(b.taxa) : "grátis"})</option>`).join("")}
+                <option value="">${T("Escolha o bairro")}</option>
+                ${BAIRROS.map((b) => `<option value="${esc(b.nome)}" ${b.nome === checkout.bairro ? "selected" : ""}>${esc(b.nome)} (${b.taxa ? dinheiro(b.taxa) : T("grátis")})</option>`).join("")}
               </select>
-              <p class="ajuda">Não achou seu bairro? Fale com a gente pelo WhatsApp.</p>
+              <p class="ajuda">${T("Não achou seu bairro? Fale com a gente pelo WhatsApp.")}</p>
             </div>` : ""}
           ${m?.pedeEndereco ? `
             <div class="campo">
-              <label for="end-${ctx}">Endereço de entrega</label>
-              <input id="end-${ctx}" data-campo="endereco" autocomplete="street-address" value="${esc(checkout.endereco)}" placeholder="Rua, número e complemento">
-              ${ENTREGA.pedidoMinimo ? `<p class="ajuda">Pedido mínimo para entrega: ${dinheiro(ENTREGA.pedidoMinimo)}.</p>` : ""}
+              <label for="end-${ctx}">${T("Endereço de entrega")}</label>
+              <input id="end-${ctx}" data-campo="endereco" autocomplete="street-address" value="${esc(checkout.endereco)}" placeholder="${esc(T("Rua, número e complemento"))}">
+              ${ENTREGA.pedidoMinimo ? `<p class="ajuda">${T("Pedido mínimo para entrega: {v}.", { v: dinheiro(ENTREGA.pedidoMinimo) })}</p>` : ""}
             </div>` : ""}
           ${pagamentos.length ? `
             <div class="campo">
-              <label for="pag-${ctx}">Forma de pagamento</label>
+              <label for="pag-${ctx}">${T("Forma de pagamento")}</label>
               <select id="pag-${ctx}" data-campo="pagamento">
-                <option value="">Escolher depois</option>
-                ${pagamentos.map((x) => `<option ${x === checkout.pagamento ? "selected" : ""}>${esc(x)}</option>`).join("")}
+                <option value="">${T("Escolher depois")}</option>
+                ${pagamentos.map((x) => `<option value="${esc(x)}" ${x === checkout.pagamento ? "selected" : ""}>${esc(T(x))}</option>`).join("")}
               </select>
             </div>` : ""}
           ${htmlCupom(ctx, t)}
           <div class="resumo">
-            <div><span>Subtotal</span><span>${dinheiro(t.subtotal)}</span></div>
-            ${t.desconto ? `<div class="desconto"><span>Desconto (${esc(t.cup.cupom.codigo.toUpperCase())})</span><span>-${dinheiro(t.desconto)}</span></div>` : ""}
-            ${m?.pedeEndereco || t.taxaStatus === "confirmar" ? `<div><span>Taxa de entrega</span><span>${t.taxaStatus === "confirmar" ? "A confirmar" : t.taxaStatus === "bairro" ? "Escolha o bairro" : t.taxa ? dinheiro(t.taxa) : "Grátis"}</span></div>` : ""}
-            <div class="total"><span>Total</span><span>${dinheiro(t.total)}</span></div>
+            <div><span>${T("Subtotal")}</span><span>${dinheiro(t.subtotal)}</span></div>
+            ${t.desconto ? `<div class="desconto"><span>${esc(T("Desconto ({c})", { c: t.cup.cupom.codigo.toUpperCase() }))}</span><span>-${dinheiro(t.desconto)}</span></div>` : ""}
+            ${m?.pedeEndereco || t.taxaStatus === "confirmar" ? `<div><span>${T("Taxa de entrega")}</span><span>${t.taxaStatus === "confirmar" ? T("A confirmar") : t.taxaStatus === "bairro" ? T("Escolha o bairro") : t.taxa ? dinheiro(t.taxa) : T("Grátis")}</span></div>` : ""}
+            <div class="total"><span>${T("Total")}</span><span>${dinheiro(t.total)}</span></div>
           </div>
           ${htmlPix(ctx, t)}
-          <details class="previa"><summary>Ver mensagem que será enviada</summary><pre data-previa>${esc(mensagem())}</pre></details>
+          <details class="previa"><summary>${T("Ver mensagem que será enviada")}</summary>${LANG !== "pt" ? `<p class="ajuda">${T("A mensagem vai em português para o restaurante entender o pedido.")}</p>` : ""}<pre data-previa>${esc(mensagem())}</pre></details>
         </div>
         <div class="painel-rodape">
           <p class="erro" data-aviso aria-live="polite">${esc(pend)}</p>
           <a class="botao botao-primario botao-bloco" data-enviar ${!pend ? `href="${linkWhats(mensagem())}" target="_blank" rel="noopener"` : 'aria-disabled="true" role="link"'}>
-            ${icone("conversa")}Enviar pedido pelo WhatsApp
+            ${icone("conversa")}${T("Enviar pedido pelo WhatsApp")}
           </a>
-          ${whatsAberto ? '<p class="retorno" role="status">O WhatsApp foi aberto com o pedido. Envie a mensagem por lá para concluir.</p>' : ""}
-          ${ctx === "modal" ? '<button type="button" class="botao botao-bloco" data-fechar style="margin-top:8px;border:0;background:transparent">Continuar escolhendo</button>' : ""}
+          ${whatsAberto ? `<p class="retorno" role="status">${T("O WhatsApp foi aberto com o pedido. Envie a mensagem por lá para concluir.")}</p>` : ""}
+          ${ctx === "modal" ? `<button type="button" class="botao botao-bloco" data-fechar style="margin-top:8px;border:0;background:transparent">${T("Continuar escolhendo")}</button>` : ""}
         </div>
       </div>`;
   }
@@ -956,23 +1130,23 @@
     if (!escolheuPix()) return "";
     let corpo;
     if (!PIX.chave) {
-      corpo = '<p class="ajuda">O estabelecimento envia os dados do Pix pelo WhatsApp depois de receber o pedido.</p>';
+      corpo = `<p class="ajuda">${T("O estabelecimento envia os dados do Pix pelo WhatsApp depois de receber o pedido.")}</p>`;
     } else if (t.taxaStatus === "confirmar") {
-      corpo = '<p class="ajuda">A taxa de entrega ainda vai ser confirmada. O estabelecimento envia o Pix com o valor final pelo WhatsApp.</p>';
+      corpo = `<p class="ajuda">${T("A taxa de entrega ainda vai ser confirmada. O estabelecimento envia o Pix com o valor final pelo WhatsApp.")}</p>`;
     } else if (t.taxaStatus === "bairro") {
-      corpo = '<p class="ajuda">Escolha o bairro de entrega para gerar o Pix com o valor certo.</p>';
+      corpo = `<p class="ajuda">${T("Escolha o bairro de entrega para gerar o Pix com o valor certo.")}</p>`;
     } else {
       const cod = codigoPix(t);
       corpo = `
-        <p class="pix-valor">Pague <strong>${dinheiro(t.total)}</strong> no app do seu banco e depois envie o pedido com o comprovante.</p>
-        <div class="pix-qr" data-qr="${esc(cod)}" aria-label="QR Code Pix de ${dinheiro(t.total)}" role="img"></div>
-        <label class="pix-rotulo" for="pix-${ctx}">Pix copia e cola</label>
+        <p class="pix-valor">${T("Pague <strong>{v}</strong> no app do seu banco e depois envie o pedido com o comprovante.", { v: dinheiro(t.total) })}</p>
+        <div class="pix-qr" data-qr="${esc(cod)}" aria-label="${esc(T("QR Code Pix de {v}", { v: dinheiro(t.total) }))}" role="img"></div>
+        <label class="pix-rotulo" for="pix-${ctx}">${T("Pix copia e cola")}</label>
         <textarea class="pix-codigo" id="pix-${ctx}" readonly rows="3">${esc(cod)}</textarea>
-        <button type="button" class="botao botao-bloco pix-copiar" data-copiar-pix>Copiar código Pix</button>
-        <p class="pix-id">Identificador do Pix: <strong>${esc(checkout.pedido)}</strong>, o mesmo código do pedido.</p>
-        <p class="ajuda" data-pix-status aria-live="polite">Recebedor: ${esc(PIX.nomeRecebedor || E.nome)}. Confira o nome no app do banco antes de pagar.</p>`;
+        <button type="button" class="botao botao-bloco pix-copiar" data-copiar-pix>${T("Copiar código Pix")}</button>
+        <p class="pix-id">${T("Identificador do Pix: <strong>{c}</strong>, o mesmo código do pedido.", { c: esc(checkout.pedido) })}</p>
+        <p class="ajuda" data-pix-status aria-live="polite">${esc(T("Recebedor: {n}. Confira o nome no app do banco antes de pagar.", { n: PIX.nomeRecebedor || E.nome }))}</p>`;
     }
-    return `<section class="pix" aria-label="Pagamento por Pix"><h3 class="secao-carrinho-titulo">Pagamento por Pix</h3>${corpo}</section>`;
+    return `<section class="pix" aria-label="${esc(T("Pagamento por Pix"))}"><h3 class="secao-carrinho-titulo">${T("Pagamento por Pix")}</h3>${corpo}</section>`;
   }
 
   // Biblioteca de QR Code carregada só quando o Pix aparece
@@ -1004,9 +1178,9 @@
     const status = botao.parentElement.querySelector("[data-pix-status]");
     try { await navigator.clipboard.writeText(area.value); }
     catch { area.select(); document.execCommand("copy"); }
-    botao.textContent = "Código copiado";
-    if (status) status.textContent = "Código copiado. Abra o app do banco, escolha Pix copia e cola e cole o código.";
-    setTimeout(() => (botao.textContent = "Copiar código Pix"), 2500);
+    botao.textContent = T("Código copiado");
+    if (status) status.textContent = T("Código copiado. Abra o app do banco, escolha Pix copia e cola e cole o código.");
+    setTimeout(() => (botao.textContent = T("Copiar código Pix")), 2500);
   }
 
   const dlgCarrinho = $("#dlg-carrinho");
@@ -1027,7 +1201,7 @@
     barra.tabIndex = t.qtd ? 0 : -1;
     $("#barra-qtd").textContent = t.qtd;
     $("#barra-total").textContent = dinheiro(t.subtotal - t.desconto);
-    barra.setAttribute("aria-label", `Ver pedido: ${t.qtd} ${t.qtd === 1 ? "item" : "itens"}, ${dinheiro(t.subtotal - t.desconto)}`);
+    barra.setAttribute("aria-label", T("Ver pedido: {q}, {v}", { q: T(t.qtd === 1 ? "{n} item" : "{n} itens", { n: t.qtd }), v: dinheiro(t.subtotal - t.desconto) }));
     document.documentElement.style.setProperty("--altura-barra", t.qtd ? "84px" : "0px");
     desenharQR();
   }
@@ -1035,8 +1209,8 @@
   function aplicarCupom(botao) {
     const input = botao.closest(".cupom").querySelector("[data-cupom-input]");
     const cod = input.value.trim();
-    if (!cod) { avisoCupom = "Digite o código do cupom."; renderCarrinho(); return; }
-    if (!acharCupom(cod)) { avisoCupom = `O cupom "${cod.toUpperCase()}" não existe ou expirou.`; renderCarrinho(); return; }
+    if (!cod) { avisoCupom = T("Digite o código do cupom."); renderCarrinho(); return; }
+    if (!acharCupom(cod)) { avisoCupom = T("O cupom \"{c}\" não existe ou expirou.", { c: cod.toUpperCase() }); renderCarrinho(); return; }
     checkout.cupom = cod; avisoCupom = "";
     persistir(); renderCarrinho();
   }
@@ -1118,8 +1292,10 @@
     aplicarTema();
     registrarServiceWorker();
     renderTopo();
-    if (C.planilha?.url) $("#cardapio").innerHTML = '<p class="carregando" role="status">Carregando o cardápio…</p>';
-    await carregarPlanilha();
+    if (C.planilha?.url) $("#cardapio").innerHTML = `<p class="carregando" role="status">${T("Carregando o cardápio…")}</p>`;
+    await Promise.all([carregarPlanilha(), carregarAvisos()]);
+    renderAviso();
+    atualizarStatus();
     montarProdutos();
     revalidarCarrinho();
     renderSEO();
@@ -1130,5 +1306,5 @@
   iniciar();
 
   // Exposto só para testes no console
-  window.__cardapio = { mensagem, totais, statusAgora, pendencias, opcoesAgendamento, lerCSV, get carrinho() { return carrinho; }, get checkout() { return checkout; } };
+  window.__cardapio = { LANG, aplicarAvisos, lerTurnos, lerDatas, FECHAMENTO, mensagem, totais, statusAgora, pendencias, opcoesAgendamento, lerCSV, get carrinho() { return carrinho; }, get checkout() { return checkout; } };
 })();
