@@ -54,6 +54,7 @@
     fechar: '<path d="M6 6l12 12M18 6 6 18"/>',
     busca: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     relogio: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    estrela: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9Z"/>',
     repetir: '<path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/>',
     instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/>'
   };
@@ -287,6 +288,7 @@
       if (/^https:\/\/[^\s"'<>]+$/i.test(l.foto || "")) dados.foto = l.foto;
       if (l.destaque) dados.destaque = sim(l.destaque);
       if (l.mais_pedido) dados.maisPedido = sim(l.mais_pedido);
+      if (l.sugestao) dados.sugestao = sim(l.sugestao);
       if (l.selos) dados.selos = l.selos.split(/[|/]/).map((s) => slug(s)).filter(Boolean);
       ["en", "es"].forEach((lg) => {
         const tr = {};
@@ -388,7 +390,7 @@
 
     const bW = $("#btn-whats-topo");
     bW.innerHTML = icone("conversa") + "WhatsApp";
-    if (numeroWhats) bW.href = linkWhats(""); else bW.remove();
+    if (numeroWhats) { bW.href = linkWhats(""); bW.addEventListener("click", () => registrar("whatsapp-topo", "Clicou no WhatsApp do topo")); } else bW.remove();
     const bM = $("#btn-mapa-topo");
     bM.innerHTML = icone("pino") + esc(T("Como chegar"));
     if (E.mapsUrl) bM.href = E.mapsUrl; else bM.remove();
@@ -636,6 +638,7 @@
     const links = [
       E.mapsUrl ? `<a class="botao botao-claro" href="${esc(E.mapsUrl)}" target="_blank" rel="noopener">${icone("pino")}${T("Como chegar")}</a>` : "",
       numeroWhats ? `<a class="botao botao-contorno" href="${linkWhats("")}" target="_blank" rel="noopener">${icone("conversa")}WhatsApp</a>` : "",
+      AVALIACAO ? `<a class="botao botao-contorno" href="${esc(AVALIACAO)}" target="_blank" rel="noopener" data-avaliar>${icone("estrela")}${T("Avaliar no Google")}</a>` : "",
       E.instagram ? `<a class="botao botao-contorno" href="https://instagram.com/${esc(E.instagram)}" target="_blank" rel="noopener">${icone("instagram")}@${esc(E.instagram)}</a>` : ""
     ].join("");
     const infos = [...(tx(E, "informacoes") || [])];
@@ -676,10 +679,10 @@
   const dlgProduto = $("#dlg-produto");
   let estado = null;
 
-  function abrirProduto(id) {
+  function abrirProduto(id, _el, origem = "") {
     const p = porId[id];
     if (!p || !p.disponivel) return;
-    estado = { p, sel: {}, qtd: 1, obs: "" };
+    estado = { p, sel: {}, qtd: 1, obs: "", origem };
     p.grupos.forEach((g) => (estado.sel[g.id] = []));
     renderProduto();
     dlgProduto.showModal();
@@ -804,6 +807,7 @@
         return;
       }
       adicionarItem(estado.p, estado.sel, estado.qtd, estado.obs);
+      registrar(estado.origem === "sugestao" ? "sugestao-aceita" : "item-adicionado", estado.origem === "sugestao" ? "Aceitou sugestão: " + estado.p.nome : "Item adicionado");
       whatsAberto = false;
       persistir(); renderCarrinho();
       dlgProduto.close();
@@ -988,8 +992,65 @@
           <p class="ultimo-titulo">${T("Seu último pedido")}</p>
           <p class="ultimo-itens">${esc(resumo)}</p>
           <button type="button" class="botao botao-bloco" data-repetir>${icone("repetir")}${T("Pedir de novo")}</button>
-        </div>` : ""}`;
+        </div>
+        ${htmlAvaliacao()}` : ""}`;
   }
+
+  /* "Peça também": sugestões no carrinho (config.sugestoes ou coluna "sugestao" da planilha) */
+  function listaSugestoes() {
+    const ids = [...(C.sugestoes || []), ...produtos.filter((p) => p.sugestao).map((p) => p.id)];
+    const noCarrinho = new Set(carrinho.map((i) => i.produtoId));
+    return [...new Set(ids)].map((id) => porId[id]).filter((p) => p && p.disponivel && !noCarrinho.has(p.id)).slice(0, 3);
+  }
+  function htmlSugestoes(ctx) {
+    const lista = listaSugestoes();
+    if (!lista.length) return "";
+    return `
+      <section class="sugestoes" aria-labelledby="sug-${ctx}">
+        <h3 class="secao-carrinho-titulo" id="sug-${ctx}">${T("Peça também")}</h3>
+        <ul class="sugestoes-lista">
+          ${lista.map((p) => {
+            const { valor, aPartir } = precoMinimo(p);
+            const nome = tx(p, "nome");
+            return `<li><button type="button" class="sugestao" data-sugestao="${esc(p.id)}" aria-label="${esc(T("Adicionar {n}", { n: nome }))}, ${aPartir ? esc(T("a partir de")) + " " : ""}${dinheiro(valor)}">
+              <span class="sugestao-foto">${foto(p.foto, nome, nome, { w: 96, h: 96, selo: false })}</span>
+              <span class="sugestao-nome">${esc(nome)}</span>
+              <span class="sugestao-preco">${aPartir ? `<small>${T("a partir de")}</small> ` : ""}${dinheiro(valor)}</span>
+              <span class="sugestao-mais" aria-hidden="true">${icone("mais")}</span>
+            </button></li>`;
+          }).join("")}
+        </ul>
+      </section>`;
+  }
+  function aceitarSugestao(id) {
+    const p = porId[id];
+    if (!p || !p.disponivel) return;
+    // Com escolha obrigatória (sabor, tamanho), abre o detalhe por cima do carrinho
+    if (p.grupos.some((g) => (g.min || 0) >= 1)) { abrirProduto(id, null, "sugestao"); return; }
+    adicionarItem(p, {}, 1, "");
+    registrar("sugestao-aceita", "Aceitou sugestão: " + p.nome);
+    whatsAberto = false; avisoRepetir = T("{n} adicionado ao pedido.", { n: tx(p, "nome") });
+    persistir(); renderCarrinho();
+  }
+
+  /* Lembrete do comprovante do Pix (o site não tem acesso ao comprovante: o cliente anexa na conversa) */
+  function htmlComprovante() {
+    if (!escolheuPix() || !PIX.chave || !numeroWhats) return "";
+    const texto = `Segue o comprovante do Pix do pedido ${checkout.pedido} (${dinheiro(totais().total)}).`;
+    return `
+    <div class="lembrete-comprovante" role="note">
+      <p><strong>${T("Não esqueça o comprovante do Pix")}</strong>${T("Depois de pagar, envie o comprovante na conversa. O pedido só é preparado depois que o pagamento é conferido.")}</p>
+      <a class="botao botao-primario botao-bloco" href="${linkWhats(texto)}" target="_blank" rel="noopener" data-comprovante>${icone("conversa")}${T("Enviar comprovante no WhatsApp")}</a>
+    </div>`;
+  }
+
+  /* Avaliação no Google (estabelecimento.avaliacaoUrl) */
+  const AVALIACAO = /^https:\/\/[^\s"'<>]+$/i.test(E.avaliacaoUrl || "") ? E.avaliacaoUrl : "";
+  const htmlAvaliacao = () => AVALIACAO ? `
+    <div class="avaliacao">
+      <p><strong>${T("Gostou? Avalie a gente no Google")}</strong>${T("Sua avaliação ajuda outras pessoas a nos encontrar.")}</p>
+      <a class="botao botao-bloco" href="${esc(AVALIACAO)}" target="_blank" rel="noopener" data-avaliar>${icone("estrela")}${T("Avaliar no Google")}</a>
+    </div>` : "";
 
   function htmlFechado(ctx) {
     if (!fechadoAgora()) return "";
@@ -1065,6 +1126,7 @@
                 </div>
               </li>`).join("")}
           </ul>
+          ${htmlSugestoes(ctx)}
           ${htmlFechado(ctx)}
           ${mods.length && !MESA ? `
             <h3 class="secao-carrinho-titulo">${T("Como você quer receber")}</h3>
@@ -1107,13 +1169,14 @@
           </div>
           ${htmlPix(ctx, t)}
           <details class="previa"><summary>${T("Ver mensagem que será enviada")}</summary>${LANG !== "pt" ? `<p class="ajuda">${T("A mensagem vai em português para o restaurante entender o pedido.")}</p>` : ""}<pre data-previa>${esc(mensagem())}</pre></details>
+          ${whatsAberto ? htmlAvaliacao() : ""}
         </div>
         <div class="painel-rodape">
           <p class="erro" data-aviso aria-live="polite">${esc(pend)}</p>
           <a class="botao botao-primario botao-bloco" data-enviar ${!pend ? `href="${linkWhats(mensagem())}" target="_blank" rel="noopener"` : 'aria-disabled="true" role="link"'}>
             ${icone("conversa")}${T("Enviar pedido pelo WhatsApp")}
           </a>
-          ${whatsAberto ? `<p class="retorno" role="status">${T("O WhatsApp foi aberto com o pedido. Envie a mensagem por lá para concluir.")}</p>` : ""}
+          ${whatsAberto ? `<p class="retorno" role="status">${T("O WhatsApp foi aberto com o pedido. Envie a mensagem por lá para concluir.")}</p>${htmlComprovante()}` : ""}
           ${ctx === "modal" ? `<button type="button" class="botao botao-bloco" data-fechar style="margin-top:8px;border:0;background:transparent">${T("Continuar escolhendo")}</button>` : ""}
         </div>
       </div>`;
@@ -1228,6 +1291,8 @@
     const r = e.target.closest("[data-remover]");
     if (r) { carrinho.splice(+r.dataset.remover, 1); whatsAberto = false; avisoRepetir = ""; persistir(); renderCarrinho(); return; }
     if (e.target.closest("[data-repetir]")) { repetirUltimoPedido(); return; }
+    const sg = e.target.closest("[data-sugestao]");
+    if (sg) { aceitarSugestao(sg.dataset.sugestao); return; }
     const ac = e.target.closest("[data-aplicar-cupom]");
     if (ac) { aplicarCupom(ac); return; }
     if (e.target.closest("[data-remover-cupom]")) { checkout.cupom = ""; persistir(); renderCarrinho(); return; }
@@ -1237,6 +1302,7 @@
     if (env) {
       if (env.getAttribute("aria-disabled") === "true") { e.preventDefault(); return; }
       whatsAberto = true;
+      registrar("pedido-enviado", "Pedido enviado pelo WhatsApp");
       guardarUltimoPedido();
       setTimeout(renderCarrinho, 0);
     }
@@ -1279,6 +1345,31 @@
     });
   });
   $("#barra-pedido").addEventListener("click", () => dlgCarrinho.showModal());
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-avaliar]")) registrar("avaliacao-google", "Clicou em avaliar no Google");
+    if (e.target.closest("[data-comprovante]")) registrar("comprovante-pix", "Abriu o WhatsApp para enviar o comprovante");
+  });
+
+  /* ---------- Relatório (GoatCounter: sem cookies e sem dados pessoais) ---------- */
+  // Conta visitas e eventos (itens adicionados, pedidos enviados, sugestões aceitas, cliques em avaliação).
+  const GC = String(C.relatorio?.goatcounter || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const filaRelatorio = [];
+  function iniciarRelatorio() {
+    if (!GC || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = "https://gc.zgo.at/count.v4.js";
+    s.dataset.goatcounter = `https://${GC}.goatcounter.com/count`;
+    s.onload = () => filaRelatorio.splice(0).forEach((f) => f());
+    document.head.appendChild(s);
+    if (MESA) registrar("abriu-pela-mesa", "Abriu pelo QR da mesa");
+    if (LANG !== "pt") registrar("idioma-" + LANG, "Abriu em " + LANG.toUpperCase());
+  }
+  function registrar(evento, titulo) {
+    if (!GC) return;
+    const f = () => { try { window.goatcounter.count({ path: evento, title: titulo || evento, event: true }); } catch { /* sem relatório */ } };
+    window.goatcounter?.count ? f() : filaRelatorio.push(f);
+  }
 
   /* ---------- Instalar como app (PWA) ---------- */
   function registrarServiceWorker() {
@@ -1291,6 +1382,7 @@
   async function iniciar() {
     aplicarTema();
     registrarServiceWorker();
+    iniciarRelatorio();
     renderTopo();
     if (C.planilha?.url) $("#cardapio").innerHTML = `<p class="carregando" role="status">${T("Carregando o cardápio…")}</p>`;
     await Promise.all([carregarPlanilha(), carregarAvisos()]);

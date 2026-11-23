@@ -73,6 +73,28 @@
 - `selos` nos produtos (vegetariano, sem-gluten, apimentado, novo) aparecem nos cards e viram filtros. Os nomes exibidos ficam em `selos` no `config.js`.
 - Depois de enviar um pedido, o celular do cliente guarda o pedido e mostra "Pedir de novo" com os preços atuais.
 
+## "Peça também" no carrinho
+- `sugestoes` no `config.js`: ids dos produtos sugeridos, em ordem (ex.: bebidas e sobremesas). Na planilha, a coluna `sugestao` (sim) também inclui o item.
+- Aparecem até 3, sem repetir o que já está no pedido nem itens indisponíveis.
+- Item sem escolha obrigatória entra com um toque. Item com sabor ou tamanho obrigatório abre o detalhe por cima do carrinho.
+
+## Comprovante do Pix
+- O site não tem acesso ao comprovante (ele fica no app do banco do cliente, e o link do WhatsApp só leva texto).
+- Depois de enviar um pedido com Pix, aparece o lembrete "Não esqueça o comprovante do Pix" com o botão "Enviar comprovante no WhatsApp", que abre a conversa com o código do pedido e o valor. O cliente só anexa a imagem.
+
+## Avaliação no Google
+- `estabelecimento.avaliacaoUrl`: link de avaliação do Perfil da Empresa no Google (no painel do Google: "Pedir avaliações" > copiar link).
+- O botão "Avaliar no Google" aparece depois do envio do pedido, na próxima visita (junto de "Pedir de novo") e no rodapé. Sem link, nada aparece.
+
+## Relatório de visitas e pedidos
+Usa o GoatCounter: gratuito, sem cookies e sem dados pessoais (não precisa de aviso de cookies).
+1. Crie uma conta em https://www.goatcounter.com e um site com um código, ex.: `cozinhaexemplo` (fica `cozinhaexemplo.goatcounter.com`). Uma conta pode ter vários sites, um por restaurante.
+2. Coloque o código em `relatorio.goatcounter` no `config.js` e publique.
+3. Para o dono ver sem senha: em Settings, ative a opção de painel público e mande o link do painel.
+- O painel mostra visitas por dia e estes eventos: `item-adicionado`, `sugestao-aceita`, `pedido-enviado`, `comprovante-pix`, `avaliacao-google`, `whatsapp-topo`, `abriu-pela-mesa`, `idioma-en` e `idioma-es`.
+- "pedido-enviado" conta quem tocou em enviar e abriu o WhatsApp. Se a pessoa desistir no WhatsApp, o site não fica sabendo.
+- No computador (localhost) nada é contado, para os testes não entrarem no relatório.
+
 ## Inglês e espanhol
 - `idiomas: ["pt", "en", "es"]` no `config.js` mostra os botões PT, EN e ES no canto da capa. Com `["pt"]`, os botões somem.
 - Celular configurado em inglês ou espanhol já abre nesse idioma. A escolha fica salva no celular. Link direto: `?lang=en`.
@@ -100,4 +122,4 @@ Com `demonstracao: false`, a página gera os dados estruturados (schema.org Rest
 Publicação: qualquer hospedagem estática (Netlify, Vercel, GitHub Pages, hospedagem comum).
 
 ## Próximas versões (não implementadas)
-Painel administrativo, estoque, pagamento online, histórico e métricas. Os dados já estão separados da interface, então `config.js` pode ser trocado por uma chamada a uma API.
+Painel administrativo, estoque, pagamento online e histórico de pedidos. Os dados já estão separados da interface, então `config.js` pode ser trocado por uma chamada a uma API.

@@ -408,6 +408,38 @@ main { outline: none; }
 .idiomas button[aria-pressed="true"] { background: var(--primaria); color: var(--primaria-texto); }
 .idiomas button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 1px; }
 
+/* "Peça também" no carrinho */
+.sugestoes { margin: 4px 0 18px; }
+.sugestoes-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sugestao {
+  position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 6px 6px 10px;
+  text-align: left; font: inherit; color: var(--texto); cursor: pointer;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-m);
+  transition: transform 160ms var(--ease-out), border-color 160ms ease;
+}
+.sugestao:hover { border-color: color-mix(in srgb, var(--primaria) 45%, var(--borda)); }
+.sugestao:active { transform: scale(0.97); }
+.sugestao-foto { display: block; aspect-ratio: 1; border-radius: calc(var(--raio-m) - 4px); overflow: hidden; background: var(--borda); margin-bottom: 4px; }
+.sugestao-foto img, .sugestao-foto .foto-reservada { width: 100%; height: 100%; object-fit: cover; }
+.sugestao-nome { font-size: .82rem; font-weight: 600; line-height: 1.25; }
+.sugestao-preco { font-family: var(--fonte-titulo); font-weight: 700; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.sugestao-preco small { font-family: var(--fonte-texto); font-weight: 500; font-size: .72rem; color: var(--texto-suave); }
+.sugestao-mais {
+  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--primaria); color: var(--primaria-texto); box-shadow: 0 1px 4px rgb(0 0 0 / .2);
+}
+.sugestao-mais .icone { width: 16px; height: 16px; }
+
+/* Lembrete do comprovante do Pix */
+.lembrete-comprovante { margin-top: 12px; padding: 14px; border-radius: var(--raio-m); background: #fff6d6; border: 1px solid #f0dc9a; }
+.lembrete-comprovante p { margin: 0 0 10px; font-size: .9rem; color: #5a4300; }
+.lembrete-comprovante strong { display: block; color: #3d2d00; font-size: .95rem; }
+
+/* Pedido de avaliação no Google */
+.avaliacao { margin-top: 14px; padding: 14px; border-radius: var(--raio-m); background: color-mix(in srgb, var(--primaria) 8%, var(--superficie)); border: 1px solid color-mix(in srgb, var(--primaria) 20%, var(--borda)); }
+.avaliacao p { margin: 0 0 10px; font-size: .9rem; color: var(--texto-suave); }
+.avaliacao strong { display: block; color: var(--texto); font-size: .95rem; }
+
 /* Busca e filtros */
 .ferramentas { padding-top: 18px; display: grid; gap: 10px; }
 .busca {

@@ -138,7 +138,16 @@ window.IDIOMAS = {
       "Código copiado. Abra o app do banco, escolha Pix copia e cola e cole o código.": "Code copied. Open your bank app, choose Pix copy and paste, and paste the code.",
       "Ver pedido: {q}, {v}": "View order: {q}, {v}",
       "Carregando o cardápio…": "Loading the menu…",
-      "Aviso do estabelecimento": "Notice from the restaurant"
+      "Aviso do estabelecimento": "Notice from the restaurant",
+      "Não esqueça o comprovante do Pix": "Don't forget the Pix receipt",
+      "Depois de pagar, envie o comprovante na conversa. O pedido só é preparado depois que o pagamento é conferido.": "After paying, send the receipt in the chat. Your order is prepared once the payment is confirmed.",
+      "Enviar comprovante no WhatsApp": "Send receipt on WhatsApp",
+      "Peça também": "Add to your order",
+      "Adicionar {n}": "Add {n}",
+      "{n} adicionado ao pedido.": "{n} added to your order.",
+      "Gostou? Avalie a gente no Google": "Enjoyed it? Review us on Google",
+      "Sua avaliação ajuda outras pessoas a nos encontrar.": "Your review helps other people find us.",
+      "Avaliar no Google": "Review on Google"
     },
     es: {
       "Pular para o cardápio": "Saltar al menú",
@@ -269,7 +278,16 @@ window.IDIOMAS = {
       "Código copiado. Abra o app do banco, escolha Pix copia e cola e cole o código.": "Código copiado. Abre la app de tu banco, elige Pix copia y pega y pega el código.",
       "Ver pedido: {q}, {v}": "Ver pedido: {q}, {v}",
       "Carregando o cardápio…": "Cargando el menú…",
-      "Aviso do estabelecimento": "Aviso del establecimiento"
+      "Aviso do estabelecimento": "Aviso del establecimiento",
+      "Não esqueça o comprovante do Pix": "No olvides el comprobante del Pix",
+      "Depois de pagar, envie o comprovante na conversa. O pedido só é preparado depois que o pagamento é conferido.": "Después de pagar, envía el comprobante en la conversación. El pedido se prepara cuando se confirma el pago.",
+      "Enviar comprovante no WhatsApp": "Enviar comprobante por WhatsApp",
+      "Peça também": "Agrega a tu pedido",
+      "Adicionar {n}": "Agregar {n}",
+      "{n} adicionado ao pedido.": "{n} agregado al pedido.",
+      "Gostou? Avalie a gente no Google": "¿Te gustó? Califícanos en Google",
+      "Sua avaliação ajuda outras pessoas a nos encontrar.": "Tu reseña ayuda a otras personas a encontrarnos.",
+      "Avaliar no Google": "Calificar en Google"
     }
   }
 };

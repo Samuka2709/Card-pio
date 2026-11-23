@@ -22,6 +22,7 @@ window.CARDAPIO = {
     mapsUrl: "",          // link do Google Maps do estabelecimento
     whatsapp: "",         // só dígitos com DDI e DDD, ex.: "5511999999999"
     instagram: "",        // ex.: "nomedoperfil" (sem @)
+    avaliacaoUrl: "",     // link "Pedir avaliações" do Perfil da Empresa no Google (ex.: https://g.page/r/XXXX/review)
     pagamentos: ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro"],
     informacoes: [
       "Entregamos em um raio de até 5 km. Tempo médio de 40 a 60 minutos.",
@@ -78,6 +79,12 @@ window.CARDAPIO = {
       { nome: "Bairro Exemplo 2", taxa: 1000 }
     ]
   },
+
+  // "Peça também": até 3 sugestões no carrinho (ids dos produtos, em ordem). Itens já no pedido ou indisponíveis não aparecem.
+  sugestoes: ["refri", "suco", "brownie", "batata"],
+
+  // Relatório de visitas e pedidos (GoatCounter, gratuito e sem cookies). Coloque o código do site, ex.: "cozinhaexemplo".
+  relatorio: { goatcounter: "" },
 
   // Cupons. tipo "percentual" (valor = %) ou "fixo" (valor em centavos). minimo = valor mínimo do pedido.
   // Atenção: os códigos ficam visíveis no código do site. Use cupons simples e confira no pedido.
