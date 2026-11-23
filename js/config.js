@@ -72,9 +72,10 @@ window.CARDAPIO = {
     { codigo: "BEMVINDO10", tipo: "percentual", valor: 10, minimo: 4000, descricao: "10% de desconto no pedido" }
   ],
 
-  // Planilha do Google publicada como CSV (Arquivo > Compartilhar > Publicar na web > CSV).
+  // Planilha do Google: cole o link da planilha compartilhada como "Qualquer pessoa com o link: Leitor"
+  // (ou o link CSV de Arquivo > Compartilhar > Publicar na web). Deixe "" para usar só este arquivo.
   // Quando preenchida, a planilha atualiza preços, disponibilidade, fotos e pode incluir produtos novos.
-  planilha: { url: "" },
+  planilha: { url: "https://docs.google.com/spreadsheets/d/1X_od3B9WlCLSFkvdUiEFO9CzgM-GvmaZXd2PrE9bsDc/edit?usp=sharing" },
 
   // Nomes exibidos dos selos usados nos produtos (campo "selos")
   selos: {

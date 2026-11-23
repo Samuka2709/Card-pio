@@ -31,13 +31,21 @@
 - Antes de entregar ao cliente, faça um Pix de teste de R$ 0,01 lendo o QR com o app do banco e confira o nome do recebedor.
 
 ## Planilha do Google (o restaurante edita sem mexer em código)
-1. Importe o arquivo `modelo-planilha.csv` no Google Planilhas (Arquivo > Importar).
-2. Em Arquivo > Compartilhar > Publicar na web, escolha a aba e o formato CSV e copie o link.
-3. Cole o link em `planilha.url` no `config.js`.
-- Colunas: id, categoria, nome, descricao, preco (ex.: 32,90), preco_original, disponivel (sim/não), foto (link), destaque, mais_pedido, selos (separados por |).
+1. Importe o arquivo `modelo-planilha.csv` no Google Planilhas (Arquivo > Importar), na conta do restaurante.
+2. Clique em Compartilhar > Acesso geral > "Qualquer pessoa com o link" > papel **Leitor**. Nunca "Editor".
+3. Copie o link da planilha e cole em `planilha.url` no `config.js`. O cardápio converte o link sozinho.
+- Colunas: id, categoria, nome, descricao, preco (ex.: 32,90), preco_original, disponivel (sim/não), foto (link https), destaque, mais_pedido, selos (separados por |).
 - Um id que já existe no `config.js` atualiza o produto e mantém as opções (tamanhos, adicionais). Um id novo cria um produto simples, sem opções.
 - Categoria nova na planilha vira uma categoria nova no cardápio.
-- O Google leva alguns minutos para atualizar o CSV publicado. Se a planilha falhar, o cardápio usa a última cópia salva no celular ou o `config.js`.
+- As alterações aparecem quando o cliente abre ou recarrega o cardápio (o Google não guarda cópia em cache).
+- Se a planilha falhar, o cardápio usa a última cópia salva no celular ou o `config.js`.
+
+### Segurança da planilha
+- Só quem é dono ou foi adicionado como editor (com login do Google) consegue alterar. Quem tem o link só consegue ver.
+- O link da planilha fica visível no código do site. Por isso, deixe nesse arquivo apenas os dados do cardápio. Custos, fornecedores e anotações vão em outro arquivo.
+- Confira de vez em quando em Compartilhar que o acesso geral continua como **Leitor**.
+- O cardápio aceita da planilha só fotos com endereço https, ignora preços negativos ou acima de R$ 10.000 e corta textos longos demais. Todo texto é exibido como texto, sem executar código.
+- Como qualquer site, o pedido é montado no celular do cliente. O restaurante deve conferir itens e total da mensagem antes de confirmar.
 
 ## QR Code por mesa
 - Abra `qrcodes.html` no site publicado (ex.: https://samuka2709.github.io/Card-pio/qrcodes.html), escolha o número de mesas e imprima.

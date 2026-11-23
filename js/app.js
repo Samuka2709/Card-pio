@@ -170,14 +170,17 @@
     linhas.forEach((l) => {
       const id = l.id || slug(l.nome);
       if (!id) return;
+      // Proteções: só fotos https, preços entre 0 e R$ 10.000, textos com tamanho limitado
+      const preco = (v) => { const c = paraCentavos(v); return c !== null && c >= 0 && c <= 1000000 ? c : null; };
+      const texto = (v, max) => String(v).replace(/\s+/g, " ").trim().slice(0, max);
       const dados = {};
-      if (l.categoria) dados.categoria = achaCategoria(l.categoria);
-      if (l.nome) dados.nome = l.nome;
-      if (l.descricao) dados.descricao = l.descricao;
-      if (paraCentavos(l.preco) !== null) dados.preco = paraCentavos(l.preco);
-      if ("preco_original" in l) dados.precoOriginal = paraCentavos(l.preco_original) || undefined;
+      if (l.categoria) dados.categoria = achaCategoria(texto(l.categoria, 40));
+      if (l.nome) dados.nome = texto(l.nome, 80);
+      if (l.descricao) dados.descricao = texto(l.descricao, 280);
+      if (preco(l.preco) !== null) dados.preco = preco(l.preco);
+      if ("preco_original" in l) dados.precoOriginal = preco(l.preco_original) || undefined;
       if (l.disponivel) dados.disponivel = sim(l.disponivel);
-      if (l.foto) dados.foto = l.foto;
+      if (/^https:\/\/[^\s"'<>]+$/i.test(l.foto || "")) dados.foto = l.foto;
       if (l.destaque) dados.destaque = sim(l.destaque);
       if (l.mais_pedido) dados.maisPedido = sim(l.mais_pedido);
       if (l.selos) dados.selos = l.selos.split(/[|/]/).map((s) => slug(s)).filter(Boolean);
@@ -189,8 +192,16 @@
     });
   }
 
+  // Aceita o link normal da planilha (compartilhada como "qualquer pessoa com o link") ou o CSV publicado
+  function urlCSV(url) {
+    const m = String(url).match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/);
+    if (!m || /\/pub|output=csv|gviz/.test(url)) return url;
+    const gid = (String(url).match(/[#&?]gid=(\d+)/) || [])[1];
+    return `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv${gid ? "&gid=" + gid : ""}`;
+  }
+
   async function carregarPlanilha() {
-    const url = C.planilha?.url;
+    const url = C.planilha?.url && urlCSV(C.planilha.url);
     if (!url) return;
     const CACHE = LS_CHAVE + ":planilha";
     try {
