@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cardápio</title>
+  <meta name="description" content="Cardápio digital com pedido pelo WhatsApp.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/estilo.css?v=8">
+</head>
+<body>
+  <a class="pular" href="#cardapio">Pular para o cardápio</a>
+
+  <header class="topo">
+    <div class="capa" id="capa"></div>
+    <div class="topo-corpo">
+      <div class="marca">
+        <div class="logo" id="logo"></div>
+        <div>
+          <h1 id="nome"></h1>
+          <p class="status" id="status" aria-live="polite"></p>
+        </div>
+      </div>
+      <p class="descricao" id="descricao"></p>
+      <div class="acoes-topo">
+        <a class="botao botao-primario" id="btn-whats-topo" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="botao" id="btn-mapa-topo" target="_blank" rel="noopener">Como chegar</a>
+        <a class="botao" href="#informacoes">Horários</a>
+      </div>
+    </div>
+  </header>
+
+  <p class="aviso-demo" id="aviso-demo" hidden>Demonstração: nomes, preços e informações são exemplos e serão substituídos pelos dados do estabelecimento.</p>
+
+  <nav class="categorias" id="categorias" aria-label="Categorias do cardápio">
+    <div class="categorias-trilho" id="categorias-trilho"></div>
+  </nav>
+
+  <div class="layout">
+    <main id="cardapio" tabindex="-1"></main>
+    <aside class="carrinho-lateral" aria-label="Seu pedido">
+      <div id="carrinho-lateral"></div>
+    </aside>
+  </div>
+
+  <footer class="rodape" id="informacoes"></footer>
+
+  <button class="barra-pedido" id="barra-pedido" type="button" hidden>
+    <span class="barra-qtd" id="barra-qtd"></span>
+    <span>Ver pedido</span>
+    <strong id="barra-total"></strong>
+  </button>
+
+  <dialog class="painel" id="dlg-produto" aria-labelledby="produto-titulo"></dialog>
+  <dialog class="painel" id="dlg-carrinho" aria-label="Seu pedido">
+    <div id="carrinho-modal"></div>
+  </dialog>
+
+  <noscript><p class="aviso-demo">Ative o JavaScript para usar o cardápio.</p></noscript>
+
+  <script src="js/config.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
+</body>
+</html>
