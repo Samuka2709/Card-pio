@@ -29,6 +29,14 @@ window.CARDAPIO = {
     ]
   },
 
+  // Pix com valor exato no carrinho (aparece quando o cliente escolhe "Pix" em pagamentos).
+  // Sem chave, o cardápio avisa que o estabelecimento envia o Pix pelo WhatsApp.
+  pix: {
+    chave: "",            // CPF/CNPJ só dígitos, e-mail, telefone no formato +5511999999999 ou chave aleatória
+    nomeRecebedor: "",    // nome do titular da conta, como aparece no banco (até 25 letras)
+    cidade: ""            // cidade do titular (até 15 letras)
+  },
+
   // 0 = domingo ... 6 = sábado. Vários turnos por dia. Fim menor que início = passa da meia-noite.
   horarios: {
     0: [["18:00", "23:00"]],

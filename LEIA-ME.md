@@ -22,6 +22,13 @@
 - `legendaFoto` vira o texto alternativo da imagem; descreva o prato.
 - Sem foto, ou se a foto não carregar, aparece um espaço reservado com a legenda.
 
+## Pix com valor exato
+- Preencha `pix.chave`, `pix.nomeRecebedor` e `pix.cidade` no `config.js` e mantenha "Pix" na lista de `pagamentos`.
+- Quando o cliente escolhe Pix no carrinho, aparecem o QR Code e o código copia e cola com o total do pedido.
+- O pagamento não é confirmado automaticamente: o estabelecimento confere no app do banco e o cliente envia o comprovante pelo WhatsApp.
+- Se a taxa de entrega for `null` (a confirmar), o código não é gerado, porque o valor final ainda não é conhecido.
+- Antes de entregar ao cliente, faça um Pix de teste de R$ 0,01 lendo o QR com o app do banco e confira o nome do recebedor.
+
 ## Google
 Com `demonstracao: false`, a página gera os dados estruturados (schema.org Restaurant, horários e cardápio com preços) a partir do `config.js`. Valide em https://search.google.com/test/rich-results depois de publicar.
 

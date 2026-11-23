@@ -496,6 +496,7 @@
     if (checkout.nome) L.push(`Nome: ${checkout.nome}`);
     if (m?.pedeEndereco && checkout.endereco) L.push(`Endereço: ${checkout.endereco}`);
     if (checkout.pagamento) L.push(`Pagamento: ${checkout.pagamento}`);
+    if (escolheuPix() && PIX.chave && !(m && m.taxa == null)) L.push("", "Vou pagar pelo Pix gerado no cardápio e enviar o comprovante nesta conversa.");
     return L.join("\n");
   }
 
@@ -563,6 +564,7 @@
             ${m && m.taxa !== 0 ? `<div><span>Taxa de entrega</span><span>${m.taxa == null ? "A confirmar" : dinheiro(m.taxa)}</span></div>` : ""}
             <div class="total"><span>Total</span><span>${dinheiro(t.total)}</span></div>
           </div>
+          ${htmlPix(ctx, t, m)}
           <details class="previa"><summary>Ver mensagem que será enviada</summary><pre data-previa>${esc(mensagem())}</pre></details>
         </div>
         <div class="painel-rodape">
@@ -574,6 +576,67 @@
           ${ctx === "modal" ? '<button type="button" class="botao botao-bloco" data-fechar style="margin-top:8px;border:0;background:transparent">Continuar escolhendo</button>' : ""}
         </div>
       </div>`;
+  }
+
+  /* ---------- Pix com valor exato ---------- */
+  const PIX = C.pix || {};
+  const escolheuPix = () => /pix/i.test(checkout.pagamento || "");
+  function codigoPix(t) {
+    if (!PIX.chave || !window.PixBR) return "";
+    return window.PixBR.gerar({ chave: PIX.chave, nome: PIX.nomeRecebedor || E.nome, cidade: PIX.cidade, centavos: t.total });
+  }
+  function htmlPix(ctx, t, m) {
+    if (!escolheuPix()) return "";
+    let corpo;
+    if (!PIX.chave) {
+      corpo = '<p class="ajuda">O estabelecimento envia os dados do Pix pelo WhatsApp depois de receber o pedido.</p>';
+    } else if (m && m.taxa == null) {
+      corpo = '<p class="ajuda">A taxa de entrega ainda vai ser confirmada. O estabelecimento envia o Pix com o valor final pelo WhatsApp.</p>';
+    } else {
+      const cod = codigoPix(t);
+      corpo = `
+        <p class="pix-valor">Pague <strong>${dinheiro(t.total)}</strong> no app do seu banco e depois envie o pedido com o comprovante.</p>
+        <div class="pix-qr" data-qr="${esc(cod)}" aria-label="QR Code Pix de ${dinheiro(t.total)}" role="img"></div>
+        <label class="pix-rotulo" for="pix-${ctx}">Pix copia e cola</label>
+        <textarea class="pix-codigo" id="pix-${ctx}" readonly rows="3">${esc(cod)}</textarea>
+        <button type="button" class="botao botao-bloco pix-copiar" data-copiar-pix>Copiar código Pix</button>
+        <p class="ajuda" data-pix-status aria-live="polite">Recebedor: ${esc(PIX.nomeRecebedor || E.nome)}. Confira o nome no app do banco antes de pagar.</p>`;
+    }
+    return `<section class="pix" aria-label="Pagamento por Pix"><h3 class="secao-carrinho-titulo">Pagamento por Pix</h3>${corpo}</section>`;
+  }
+
+  // Biblioteca de QR Code carregada só quando o Pix aparece
+  let qrLib = null;
+  function carregarQR() {
+    if (window.qrcode) return Promise.resolve();
+    qrLib = qrLib || new Promise((ok, falha) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+      s.onload = ok; s.onerror = falha;
+      document.head.appendChild(s);
+    });
+    return qrLib;
+  }
+  function desenharQR() {
+    const alvos = document.querySelectorAll("[data-qr]");
+    if (!alvos.length) return;
+    carregarQR().then(() => {
+      alvos.forEach((el) => {
+        const q = window.qrcode(0, "M");
+        q.addData(el.dataset.qr);
+        q.make();
+        el.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      });
+    }).catch(() => alvos.forEach((el) => el.remove()));
+  }
+  async function copiarPix(botao) {
+    const area = botao.parentElement.querySelector(".pix-codigo");
+    const status = botao.parentElement.querySelector("[data-pix-status]");
+    try { await navigator.clipboard.writeText(area.value); }
+    catch { area.select(); document.execCommand("copy"); }
+    botao.textContent = "Código copiado";
+    if (status) status.textContent = "Código copiado. Abra o app do banco, escolha Pix copia e cola e cole o código.";
+    setTimeout(() => (botao.textContent = "Copiar código Pix"), 2500);
   }
 
   const dlgCarrinho = $("#dlg-carrinho");
@@ -595,6 +658,7 @@
     $("#barra-total").textContent = dinheiro(t.subtotal);
     barra.setAttribute("aria-label", `Ver pedido: ${t.qtd} ${t.qtd === 1 ? "item" : "itens"}, ${dinheiro(t.subtotal)}`);
     document.documentElement.style.setProperty("--altura-barra", t.qtd ? "84px" : "0px");
+    desenharQR();
   }
 
   function aoInteragirCarrinho(e) {
@@ -609,6 +673,8 @@
     }
     const r = e.target.closest("[data-remover]");
     if (r) { carrinho.splice(+r.dataset.remover, 1); whatsAberto = false; persistir(); renderCarrinho(); return; }
+    const cp = e.target.closest("[data-copiar-pix]");
+    if (cp) { copiarPix(cp); return; }
     const env = e.target.closest("[data-enviar]");
     if (env) {
       if (env.getAttribute("aria-disabled") === "true") { e.preventDefault(); return; }
@@ -625,6 +691,7 @@
     if (!campo) return;
     checkout[campo] = e.target.value.trim();
     persistir();
+    if (campo === "pagamento" && e.type === "change") { renderCarrinho(); return; }
     // Sincroniza o mesmo campo no outro painel sem redesenhar (não perde foco nem clique)
     document.querySelectorAll(`[data-campo="${campo}"]`).forEach((el) => { if (el !== e.target) el.value = e.target.value; });
     atualizarEnvio();
