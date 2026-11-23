@@ -25,7 +25,8 @@
 ## Pix com valor exato
 - Preencha `pix.chave`, `pix.nomeRecebedor` e `pix.cidade` no `config.js` e mantenha "Pix" na lista de `pagamentos`.
 - Quando o cliente escolhe Pix no carrinho, aparecem o QR Code e o código copia e cola com o total do pedido.
-- O pagamento não é confirmado automaticamente: o estabelecimento confere no app do banco e o cliente envia o comprovante pelo WhatsApp.
+- Cada pedido recebe um código (ex.: PED7K3AB) que aparece no carrinho, na mensagem do WhatsApp e no identificador do Pix. Para conferir, procure esse código e o valor no comprovante ou no extrato.
+- O pagamento não é confirmado automaticamente: o estabelecimento confere no app do banco (vale ligar as notificações de Pix recebido) e o cliente envia o comprovante pelo WhatsApp. Nem todo banco mostra o identificador em Pix de QR fixo.
 - Se a taxa de entrega for `null` (a confirmar), o código não é gerado, porque o valor final ainda não é conhecido.
 - Antes de entregar ao cliente, faça um Pix de teste de R$ 0,01 lendo o QR com o app do banco e confira o nome do recebedor.
 

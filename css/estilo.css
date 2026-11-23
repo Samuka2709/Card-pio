@@ -370,3 +370,6 @@ main { outline: none; }
 }
 .pix-copiar { margin-top: 8px; width: calc(100% - 28px); border-color: var(--primaria); color: var(--primaria); }
 .pix .ajuda { margin: 8px 14px 10px; }
+.codigo-pedido { margin: 2px 0 0; font-size: .82rem; color: var(--texto-suave); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.pix-id { margin: 10px 14px 0; font-size: .85rem; color: var(--texto-suave); }
+.pix-id strong { color: var(--texto); letter-spacing: .03em; }

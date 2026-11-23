@@ -444,7 +444,19 @@
   /* ---------- Carrinho ---------- */
   const salvo = lsLer(LS_CHAVE) || {};
   let carrinho = Array.isArray(salvo.itens) ? salvo.itens.filter((i) => porId[i.produtoId]?.disponivel) : [];
-  const checkout = { modalidade: salvo.modalidade || C.modalidades?.[0]?.id || "", nome: salvo.nome || "", endereco: salvo.endereco || "", pagamento: salvo.pagamento || "" };
+  const checkout = { modalidade: salvo.modalidade || C.modalidades?.[0]?.id || "", nome: salvo.nome || "", endereco: salvo.endereco || "", pagamento: salvo.pagamento || "", pedido: salvo.pedido || "" };
+
+  // Código curto do pedido (sem 0/O/1/I para não confundir). Vai na mensagem e no identificador do Pix.
+  function novoCodigoPedido() {
+    const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const n = new Uint32Array(5);
+    (window.crypto || {}).getRandomValues ? crypto.getRandomValues(n) : n.forEach((_, i) => (n[i] = Math.random() * 1e9));
+    return "PED" + [...n].map((x) => A[x % A.length]).join("");
+  }
+  function sincronizarCodigoPedido() {
+    if (carrinho.length && !checkout.pedido) { checkout.pedido = novoCodigoPedido(); persistir(); }
+    if (!carrinho.length && checkout.pedido) { checkout.pedido = ""; persistir(); }
+  }
   let whatsAberto = false;
 
   function persistir() { lsGravar(LS_CHAVE, { itens: carrinho, ...checkout }); }
@@ -480,7 +492,7 @@
   function mensagem() {
     const t = totais();
     const m = modalidadeAtual();
-    const L = [`*Novo pedido: ${E.nome}*`, ""];
+    const L = [`*Novo pedido: ${E.nome}*`, checkout.pedido ? `Código do pedido: *${checkout.pedido}*` : "", ""].filter((x, i) => x || i === 2);
     carrinho.forEach((i) => {
       L.push(`*${i.qtd}x ${i.nome}*  ${dinheiro(i.unit * i.qtd)}`);
       detalhesItem(i).forEach((d) => L.push(`   ${d}`));
@@ -514,7 +526,7 @@
     const podeEnviar = !!numeroWhats && !faltaEndereco;
     return `
       <div class="painel-inner">
-        <div class="painel-cabeca"><h2>Seu pedido</h2>${ctx === "modal" ? `<button type="button" class="fechar" data-fechar aria-label="Fechar">${icone("fechar")}</button>` : ""}</div>
+        <div class="painel-cabeca"><div><h2>Seu pedido</h2>${checkout.pedido ? `<p class="codigo-pedido">Código ${esc(checkout.pedido)}</p>` : ""}</div>${ctx === "modal" ? `<button type="button" class="fechar" data-fechar aria-label="Fechar">${icone("fechar")}</button>` : ""}</div>
         <div class="painel-rolagem">
           <ul class="carrinho-itens">
             ${carrinho.map((i, idx) => `
@@ -583,7 +595,7 @@
   const escolheuPix = () => /pix/i.test(checkout.pagamento || "");
   function codigoPix(t) {
     if (!PIX.chave || !window.PixBR) return "";
-    return window.PixBR.gerar({ chave: PIX.chave, nome: PIX.nomeRecebedor || E.nome, cidade: PIX.cidade, centavos: t.total });
+    return window.PixBR.gerar({ chave: PIX.chave, nome: PIX.nomeRecebedor || E.nome, cidade: PIX.cidade, centavos: t.total, txid: checkout.pedido });
   }
   function htmlPix(ctx, t, m) {
     if (!escolheuPix()) return "";
@@ -600,6 +612,7 @@
         <label class="pix-rotulo" for="pix-${ctx}">Pix copia e cola</label>
         <textarea class="pix-codigo" id="pix-${ctx}" readonly rows="3">${esc(cod)}</textarea>
         <button type="button" class="botao botao-bloco pix-copiar" data-copiar-pix>Copiar código Pix</button>
+        <p class="pix-id">Identificador do Pix: <strong>${esc(checkout.pedido)}</strong>, o mesmo código do pedido.</p>
         <p class="ajuda" data-pix-status aria-live="polite">Recebedor: ${esc(PIX.nomeRecebedor || E.nome)}. Confira o nome no app do banco antes de pagar.</p>`;
     }
     return `<section class="pix" aria-label="Pagamento por Pix"><h3 class="secao-carrinho-titulo">Pagamento por Pix</h3>${corpo}</section>`;
@@ -641,6 +654,7 @@
 
   const dlgCarrinho = $("#dlg-carrinho");
   function renderCarrinho() {
+    sincronizarCodigoPedido();
     const ativo = document.activeElement;
     const idAtivo = ativo?.id;
     $("#carrinho-lateral").innerHTML = htmlCarrinho("lateral");

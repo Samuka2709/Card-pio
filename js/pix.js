@@ -16,7 +16,9 @@
   }
 
   /** centavos: inteiro; retorna o código copia e cola */
-  function gerar({ chave, nome, cidade, centavos, descricao }) {
+  /** txid: identificador do pagamento (letras e números, até 25); sem ele usa "***" */
+  function gerar({ chave, nome, cidade, centavos, descricao, txid }) {
+    const id = String(txid || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 25) || "***";
     const conta = campo("00", "br.gov.bcb.pix") + campo("01", String(chave).trim()) + (descricao ? campo("02", limpar(descricao, 40)) : "");
     const corpo =
       campo("00", "01") +
@@ -27,7 +29,7 @@
       campo("58", "BR") +
       campo("59", limpar(nome, 25) || "RECEBEDOR") +
       campo("60", limpar(cidade, 15) || "BRASIL") +
-      campo("62", campo("05", "***")) +
+      campo("62", campo("05", id)) +
       "6304";
     return corpo + crc16(corpo);
   }
